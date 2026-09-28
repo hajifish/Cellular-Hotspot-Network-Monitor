@@ -53,7 +53,7 @@ README.md
 **Interfaces:**
 - Produces: `enum InterfaceCategory { case wifi, iphone }`；`struct InterfaceCounters { var rx: UInt64; var tx: UInt64 }`；`struct CategoryDelta { var rx: UInt64; var tx: UInt64; static let zero }`；`ByteFormat.string(UInt64) -> String`、`ByteFormat.rate(UInt64) -> String`
 
-- [ ] **Step 1: 写 Package.swift 和 Models.swift**
+- [x] **Step 1: 写 Package.swift 和 Models.swift**
 
 `Package.swift`:
 ```swift
@@ -110,7 +110,7 @@ struct PlaceholderMain {
 
 注意：`@main` 与后续 SwiftUI App 同名冲突，Task 6 直接整体替换本文件即可。）
 
-- [ ] **Step 2: 写失败测试** `Tests/TrafficMonitorTests/ByteFormatTests.swift`:
+- [x] **Step 2: 写失败测试** `Tests/TrafficMonitorTests/ByteFormatTests.swift`:
 
 ```swift
 import XCTest
@@ -140,12 +140,12 @@ final class ByteFormatTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 3: 运行确认失败**
+- [x] **Step 3: 运行确认失败**
 
 Run: `swift test --filter ByteFormatTests 2>&1 | tail -5`
 Expected: 编译失败，`ByteFormat` 未定义
 
-- [ ] **Step 4: 实现** `Sources/TrafficMonitor/ByteFormat.swift`:
+- [x] **Step 4: 实现** `Sources/TrafficMonitor/ByteFormat.swift`:
 
 ```swift
 enum ByteFormat {
@@ -168,12 +168,12 @@ enum ByteFormat {
 }
 ```
 
-- [ ] **Step 5: 运行确认通过**
+- [x] **Step 5: 运行确认通过**
 
 Run: `swift test --filter ByteFormatTests 2>&1 | tail -5`
 Expected: `Executed 4 tests, with 0 failures`
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add -A && git commit -m "feat: package scaffold and byte formatting
@@ -193,7 +193,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `InterfaceCategory`、`InterfaceCounters`、`CategoryDelta`（Task 1）
 - Produces: `TrafficMath.deltas(previous: [String: InterfaceCounters], current: [String: InterfaceCounters], categories: [String: InterfaceCategory]) -> [InterfaceCategory: CategoryDelta]`
 
-- [ ] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/TrafficMathTests.swift`:
+- [x] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/TrafficMathTests.swift`:
 
 ```swift
 import XCTest
@@ -257,12 +257,12 @@ final class TrafficMathTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `swift test --filter TrafficMathTests 2>&1 | tail -5`
 Expected: 编译失败，`TrafficMath` 未定义
 
-- [ ] **Step 3: 实现** `Sources/TrafficMonitor/TrafficMath.swift`:
+- [x] **Step 3: 实现** `Sources/TrafficMonitor/TrafficMath.swift`:
 
 ```swift
 enum TrafficMath {
@@ -286,12 +286,12 @@ enum TrafficMath {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `swift test --filter TrafficMathTests 2>&1 | tail -5`
 Expected: `Executed 6 tests, with 0 failures`
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add -A && git commit -m "feat: snapshot delta math with clamp and category aggregation
@@ -311,7 +311,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `InterfaceCategory`、`CategoryDelta`（Task 1）
 - Produces: `@MainActor final class UsageStore`，属性 `startTime: Date`、`wifiRX/wifiTX/iphoneRX/iphoneTX: UInt64`，方法 `record(_ deltas: [InterfaceCategory: CategoryDelta])`、`reset()`
 
-- [ ] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/UsageStoreTests.swift`:
+- [x] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/UsageStoreTests.swift`:
 
 ```swift
 import XCTest
@@ -351,12 +351,12 @@ final class UsageStoreTests: XCTestCase {
 
 （`XCTWaiter().wait(for: [], timeout:)` 只是让出主线程片刻；若编译器告警可换成 `Thread.sleep(forTimeInterval: 0.02)`。）
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `swift test --filter UsageStoreTests 2>&1 | tail -5`
 Expected: 编译失败，`UsageStore` 未定义
 
-- [ ] **Step 3: 实现** `Sources/TrafficMonitor/UsageStore.swift`:
+- [x] **Step 3: 实现** `Sources/TrafficMonitor/UsageStore.swift`:
 
 ```swift
 import Observation
@@ -392,12 +392,12 @@ final class UsageStore {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `swift test --filter UsageStoreTests 2>&1 | tail -5`
 Expected: `Executed 3 tests, with 0 failures`
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add -A && git commit -m "feat: observable usage store with reset
@@ -417,7 +417,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `InterfaceCategory`、`InterfaceCounters`、`ClassifiedSample`（Task 1）
 - Produces: `protocol InterfaceSampling { func sample() -> [ClassifiedSample] }`；`InterfaceClassifier.category(interfaceType: String, description: String) -> InterfaceCategory?`；`struct InterfaceSampler: InterfaceSampling`
 
-- [ ] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/InterfaceSamplerTests.swift`:
+- [x] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/InterfaceSamplerTests.swift`:
 
 ```swift
 import XCTest
@@ -449,12 +449,12 @@ final class InterfaceSamplerTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `swift test --filter InterfaceSamplerTests 2>&1 | tail -5`
 Expected: 编译失败，`InterfaceClassifier`/`InterfaceSampler` 未定义
 
-- [ ] **Step 3: 实现** `Sources/TrafficMonitor/InterfaceSampler.swift`:
+- [x] **Step 3: 实现** `Sources/TrafficMonitor/InterfaceSampler.swift`:
 
 ```swift
 import Darwin
@@ -520,12 +520,12 @@ struct InterfaceSampler: InterfaceSampling {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `swift test --filter InterfaceSamplerTests 2>&1 | tail -5`
 Expected: `Executed 4 tests, with 0 failures`（live 冒烟测试在真实 mac 上必过）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add -A && git commit -m "feat: interface classification and getifaddrs sampling
@@ -545,7 +545,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `InterfaceSampling`/`ClassifiedSample`（Task 4）、`TrafficMath`（Task 2）、`UsageStore`（Task 3）、`ByteFormat`（Task 1）
 - Produces: `@MainActor final class TrafficMonitor`，属性 `store: UsageStore`、`wifiRate/iphoneRate: CategoryDelta`、`menuBarTitle: String`，方法 `init(sampler: InterfaceSampling)`、`start()`、`tick()`、`update(from samples: [ClassifiedSample])`、`reset()`
 
-- [ ] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/TrafficMonitorTests.swift`:
+- [x] **Step 1: 写失败测试** `Tests/TrafficMonitorTests/TrafficMonitorTests.swift`:
 
 ```swift
 import XCTest
@@ -602,12 +602,12 @@ final class TrafficMonitorTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 Run: `swift test --filter TrafficMonitorTests 2>&1 | tail -5`
 Expected: 编译失败，`TrafficMonitor` 未定义
 
-- [ ] **Step 3: 实现** `Sources/TrafficMonitor/TrafficMonitor.swift`:
+- [x] **Step 3: 实现** `Sources/TrafficMonitor/TrafficMonitor.swift`:
 
 ```swift
 import Observation
@@ -675,12 +675,12 @@ final class TrafficMonitor {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 Run: `swift test --filter TrafficMonitorTests 2>&1 | tail -5`
 Expected: `Executed 4 tests, with 0 failures`
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add -A && git commit -m "feat: traffic monitor glue with timer, rates and menubar title
@@ -699,7 +699,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: `TrafficMonitor`（Task 5）、`ByteFormat`（Task 1）
 - Produces: 可执行的应用入口
 
-- [ ] **Step 1: 整体替换** `Sources/TrafficMonitor/TrafficMonitorApp.swift`:
+- [x] **Step 1: 整体替换** `Sources/TrafficMonitor/TrafficMonitorApp.swift`:
 
 ```swift
 import SwiftUI
@@ -762,17 +762,17 @@ struct TrafficMonitorApp: App {
 
 （`@State` 包装的 `@Observable` 对象在 init 里调用其方法即可，状态仍由 SwiftUI 管理；`start()` 幂等，重复调用无害。）
 
-- [ ] **Step 2: 全量测试确认无回归**
+- [x] **Step 2: 全量测试确认无回归**
 
 Run: `swift test 2>&1 | tail -5`
 Expected: 全部通过（21 个测试）
 
-- [ ] **Step 3: Release 构建确认可编译**
+- [x] **Step 3: Release 构建确认可编译**
 
 Run: `swift build -c release 2>&1 | tail -3`
 Expected: `Build complete!`
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add -A && git commit -m "feat: menubar app UI with per-interface breakdown
@@ -792,7 +792,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - Consumes: Release 可执行文件 `.build/release/TrafficMonitor`
 - Produces: `Traffic Monitor.app`，可直接 `open` 运行
 
-- [ ] **Step 1: 写打包脚本** `scripts/make-app.sh`:
+- [x] **Step 1: 写打包脚本** `scripts/make-app.sh`:
 
 ```bash
 #!/bin/bash
@@ -829,7 +829,7 @@ echo "Built ./$APP"
 
 然后 `chmod +x scripts/make-app.sh`。
 
-- [ ] **Step 2: 写 README.md**:
+- [x] **Step 2: 写 README.md**:
 
 ```markdown
 # Traffic Monitor
@@ -851,12 +851,12 @@ macOS 菜单栏流量监测：从启动时刻起累计 Wi-Fi 与 USB 共享 iPho
 接口分类规则：Wi-Fi 按接口类型 `IEEE80211`；iPhone USB 按硬件端口描述含 "iPhone"（`SCNetworkInterface`）。设计文档见 `docs/superpowers/specs/`。
 ```
 
-- [ ] **Step 3: 打包并运行**
+- [x] **Step 3: 打包并运行**
 
 Run: `./scripts/make-app.sh && open "Traffic Monitor.app"`
 Expected: `Built ./Traffic Monitor.app`；菜单栏出现 `↑0 B/s ↓0 B/s` 图标
 
-- [ ] **Step 4: 运行时验证数据管线**
+- [x] **Step 4: 运行时验证数据管线**
 
 Run:
 ```bash
@@ -871,11 +871,11 @@ grep -c "wifiRx\|iphoneRx" /tmp/trafficmon.log   # 应 > 0
 ```
 Expected: 日志中出现每秒 tick 且 wifiRx 数值在 curl 后明显增长（比 curl 前最后一次大）。若日志为空：改用 `log show --last 1m --predicate 'process == "TrafficMonitor"'` 检查。
 
-- [ ] **Step 5: 确认菜单栏标签在增长（防 MenuBarExtra label 不刷新的已知历史问题）**
+- [x] **Step 5: 确认菜单栏标签在增长（防 MenuBarExtra label 不刷新的已知历史问题）**
 
 若 `log stream` 中数值在涨但菜单栏数字不动（需肉眼确认则向用户报告前先自查：用 `osascript` 读菜单栏属于系统辅助功能授权，成本高；以日志为准，标签刷新问题留给 Task 6 已用的 `@Observable` + macOS 26 机制，一般无碍）。如有问题，回退方案：改用 `NSStatusItem` 手动刷 `button.title`。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add -A && git commit -m "feat: app bundle script and readme

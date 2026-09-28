@@ -30,34 +30,51 @@ struct InterfaceSampler: InterfaceSampling {
         return result
     }
 
+    /// 通过 sysctl(NET_RT_IFLIST2) 读取 64 位字节计数。
+    /// 注意：getifaddrs 的 ifa_data 是 32 位 if_data（会回绕且偏移不匹配），
+    /// netstat -ib 的 64 位大计数与本方法同源。
     func sample() -> [ClassifiedSample] {
         let categories = categoryByBSDName
-        var result: [ClassifiedSample] = []
-        var ifaddrPtr: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddrPtr) == 0, let first = ifaddrPtr else { return result }
-        defer { freeifaddrs(ifaddrPtr) }
+        var mib: [Int32] = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
+        var length: size_t = 0
+        guard sysctl(&mib, 6, nil, &length, nil, 0) == 0, length > 0 else { return [] }
+        var buffer = [UInt8](repeating: 0, count: length)
+        guard sysctl(&mib, 6, &buffer, &length, nil, 0) == 0 else { return [] }
 
-        var seen = Set<String>()
-        var cursor: UnsafeMutablePointer<ifaddrs>? = first
-        while let ptr = cursor {
-            let ifa = ptr.pointee
-            cursor = ifa.ifa_next
-            guard let sa = ifa.ifa_addr, sa.pointee.sa_family == UInt8(AF_LINK) else { continue }
-            let name = String(cString: ifa.ifa_name)
-            guard seen.insert(name).inserted else { continue } // 每个接口取第一条 AF_LINK 记录
-            var rx: UInt64 = 0
-            var tx: UInt64 = 0
-            if let dataPtr = ifa.ifa_data {
-                // macOS 的 getifaddrs 在 ifa_data 里放的是 64 位 if_data64
-                // （netstat -ib 的大计数同源；32 位 if_data 会在 4GB 回绕）
-                let data = dataPtr.assumingMemoryBound(to: if_data64.self).pointee
-                rx = data.ifi_ibytes
-                tx = data.ifi_obytes
+        var result: [ClassifiedSample] = []
+        buffer.withUnsafeMutableBytes { raw in
+            guard let base = raw.baseAddress else { return }
+            var offset = 0
+            while offset + MemoryLayout<if_msghdr2>.size <= length {
+                let message = base.advanced(by: offset).assumingMemoryBound(to: if_msghdr2.self).pointee
+                let messageLength = Int(message.ifm_msglen)
+                guard messageLength > 0, offset + messageLength <= length else { break }
+                if message.ifm_type == RTM_IFINFO2, Int(message.ifm_addrs) & Int(RTA_IFP) != 0 {
+                    // sockaddr_dl 跟在 if_msghdr2 固定部分之后
+                    let name = Self.interfaceName(at: base.advanced(by: offset + MemoryLayout<if_msghdr2>.size))
+                    if let name {
+                        result.append(ClassifiedSample(
+                            name: name,
+                            category: categories[name],
+                            counters: InterfaceCounters(rx: message.ifm_data.ifi_ibytes,
+                                                        tx: message.ifm_data.ifi_obytes)))
+                    }
+                }
+                offset += (messageLength + 3) & ~3 // 路由消息 4 字节对齐
             }
-            result.append(ClassifiedSample(name: name,
-                                           category: categories[name],
-                                           counters: InterfaceCounters(rx: rx, tx: tx)))
         }
         return result
+    }
+
+    /// 指针指向 sockaddr_dl（紧跟 if_msghdr2 固定部分），接口名在 sdl_data 前 sdl_nlen 字节
+    private static func interfaceName(at message: UnsafeMutableRawPointer) -> String? {
+        let sdl = message.assumingMemoryBound(to: sockaddr_dl.self).pointee
+        let nameLength = Int(sdl.sdl_nlen)
+        guard nameLength > 0, nameLength <= 12 else { return nil }
+        var name = ""
+        withUnsafeBytes(of: sdl.sdl_data) { raw in
+            name = String(decoding: raw.prefix(nameLength), as: UTF8.self)
+        }
+        return name
     }
 }

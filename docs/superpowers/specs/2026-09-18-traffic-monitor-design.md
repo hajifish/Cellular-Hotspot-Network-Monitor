@@ -59,3 +59,9 @@ Swift Package（无 .xcodeproj），单 target，macOS 13+。附带打包脚本�
 ## 测试
 
 XCTest 覆盖纯逻辑：差值计算、负差值钳位、字节单位格式化、UsageStore 累计/重置。`getifaddrs` 调用封装为协议 `InterfaceSampling`，测试注入假快照。UI 层不做单测。
+
+## 实现偏差（2026-09-18 实现时确认）
+
+1. **UI 层改用 AppKit（`NSStatusItem` + `NSMenu`）** 而非 SwiftUI `MenuBarExtra`：本机仅有 Command Line Tools 工具链，加载不了 SDK 内置的 SwiftUI 宏插件（`@State` 等），Observation 宏不受影响。功能与设计稿一致。
+2. **字节计数用 `sysctl(NET_RT_IFLIST2)` 而非 `getifaddrs`**：实测发现 `getifaddrs` 的 `ifa_data` 是 32 位 `if_data`（4GB 回绕、字段偏移与 `if_data64` 不匹配）；`NET_RT_IFLIST2` 是 `netstat -ib` 的数据源，64 位计数。
+3. **测试框架**：CLT 环境无 XCTest、swift-testing 宏插件不稳定。自测代码内置于主程序，`TRAFFICMONITOR_SELFTEST=1` 进入测试模式（45 项断言），`/sbin/ping` 网关的实时集成测试保证计数器读到真实流量。

@@ -56,6 +56,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         statusItem.menu = menu
         monitor.onChange = { [weak self] in self?.refresh() }
+        monitor.start()
         refresh()
     }
 
