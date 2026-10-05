@@ -45,6 +45,8 @@ enum SelfTest {
         TestRun.suite("UsageStore") { UsageStoreTests.all() }
         TestRun.suite("InterfaceSampler") { InterfaceSamplerTests.all() }
         TestRun.suite("TrafficMonitor") { TrafficMonitorTests.all() }
+        TestRun.suite("RateHistory") { RateHistoryTests.all() }
+        TestRun.suite("HomePage") { HomePageTests.all() }
         TestRun.finish()
     }
 }

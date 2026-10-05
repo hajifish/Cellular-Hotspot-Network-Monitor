@@ -16,10 +16,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     static private(set) var shared: MenuBarController!
 
     private let monitor = TrafficMonitor()
+    private let homeController: HomePageController
     private var statusItem: NSStatusItem!
     private var startTimeItem: NSMenuItem!
     private var wifiItem: NSMenuItem!
     private var iphoneItem: NSMenuItem!
+    private var changeObserverID: UUID?
 
     static func run() {
         let app = NSApplication.shared
@@ -28,6 +30,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         controller.install()
         app.setActivationPolicy(.accessory) // 无 Dock 图标
         app.run()
+    }
+
+    override init() {
+        homeController = HomePageController(monitor: monitor)
     }
 
     private func install() {
@@ -43,6 +49,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let reset = NSMenuItem(title: "重置计数", action: #selector(resetCounters), keyEquivalent: "r")
         reset.target = self
+        let openHome = NSMenuItem(title: "打开主页", action: #selector(openHome), keyEquivalent: "0")
+        openHome.target = self
         let quit = NSMenuItem(title: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         menu.addItem(startTimeItem)
@@ -50,14 +58,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(wifiItem)
         menu.addItem(iphoneItem)
         menu.addItem(.separator())
+        menu.addItem(openHome)
         menu.addItem(reset)
         menu.addItem(.separator())
         menu.addItem(quit)
 
         statusItem.menu = menu
-        monitor.onChange = { [weak self] in self?.refresh() }
+        changeObserverID = monitor.addObserver { [weak self] in self?.refresh() }
         monitor.start()
         refresh()
+        // 诊断/验证用：启动即打开主页
+        if ProcessInfo.processInfo.environment["TRAFFICMONITOR_SHOWHOME"] == "1" {
+            homeController.show()
+        }
+    }
+
+    @objc private func openHome() {
+        homeController.show()
     }
 
     @objc private func resetCounters() {

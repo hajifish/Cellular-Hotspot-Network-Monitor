@@ -6,13 +6,15 @@ import os
 @MainActor
 final class TrafficMonitor {
     let store = UsageStore()
+    let history = RateHistory()
     private let sampler: InterfaceSampling
     private let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "tick")
     private var previousCounters: [String: InterfaceCounters] = [:]
     private(set) var wifiRate = CategoryDelta.zero
     private(set) var iphoneRate = CategoryDelta.zero
-    /// 状态变化回调（UI 刷新用）
-    var onChange: (() -> Void)?
+    /// 各类别当前使用的接口 BSD 名（主页展示用）
+    private(set) var interfaceByCategory: [InterfaceCategory: String] = [:]
+    private var observers: [UUID: () -> Void] = [:]
     private var timer: Timer?
 
     init(sampler: InterfaceSampling = InterfaceSampler()) {
@@ -23,9 +25,29 @@ final class TrafficMonitor {
 
     /// 菜单栏标题：总实时速率 ↑tx ↓rx
     var menuBarTitle: String {
-        let tx = wifiRate.tx + iphoneRate.tx
-        let rx = wifiRate.rx + iphoneRate.rx
-        return "↑\(ByteFormat.rate(tx)) ↓\(ByteFormat.rate(rx))"
+        "↑\(ByteFormat.rate(totalRate.tx)) ↓\(ByteFormat.rate(totalRate.rx))"
+    }
+
+    /// 全部类别的总速率
+    var totalRate: CategoryDelta {
+        CategoryDelta(rx: wifiRate.rx + iphoneRate.rx, tx: wifiRate.tx + iphoneRate.tx)
+    }
+
+    // MARK: - 观察者（UI 刷新）
+
+    @discardableResult
+    func addObserver(_ callback: @escaping () -> Void) -> UUID {
+        let id = UUID()
+        observers[id] = callback
+        return id
+    }
+
+    func removeObserver(_ id: UUID) {
+        observers.removeValue(forKey: id)
+    }
+
+    private func notifyObservers() {
+        observers.values.forEach { $0() }
     }
 
     func start() {
@@ -44,7 +66,10 @@ final class TrafficMonitor {
     func update(from samples: [ClassifiedSample]) {
         var categories: [String: InterfaceCategory] = [:]
         for s in samples {
-            if let c = s.category { categories[s.name] = c }
+            if let c = s.category {
+                categories[s.name] = c
+                interfaceByCategory[c] = s.name
+            }
         }
         let current = Self.counterMap(from: samples)
         let deltas = TrafficMath.deltas(previous: previousCounters, current: current, categories: categories)
@@ -52,14 +77,19 @@ final class TrafficMonitor {
         wifiRate = deltas[.wifi] ?? .zero
         iphoneRate = deltas[.iphone] ?? .zero
         previousCounters = current
-        onChange?()
+        let total = deltas.values.reduce(CategoryDelta.zero) {
+            CategoryDelta(rx: $0.rx + $1.rx, tx: $0.tx + $1.tx)
+        }
+        history.push(RateSample(rx: total.rx, tx: total.tx))
+        notifyObservers()
     }
 
     func reset() {
         store.reset()
         wifiRate = .zero
         iphoneRate = .zero
-        onChange?()
+        history.clear()
+        notifyObservers()
     }
 
     private static func counterMap(from samples: [ClassifiedSample]) -> [String: InterfaceCounters] {
