@@ -38,7 +38,7 @@ final class RateGraphView: NSView {
         let maxRate = Self.niceMaximum(samples.map { max($0.rx, $0.tx) }.max() ?? 1)
 
         // 退隐网格：3 条水平细线 + 左上量程标注（文字用文本色，不用序列色）
-        NSColor.separatorColor.withAlphaComponent(0.35).setStroke()
+        NSColor.white.withAlphaComponent(0.08).setStroke()
         let grid = NSBezierPath()
         for fraction in [0.0, 0.5, 1.0] {
             let y = plot.minY + plot.height * CGFloat(fraction)
@@ -55,8 +55,9 @@ final class RateGraphView: NSView {
             NSPoint(x: plot.maxX - CGFloat(samples.count - 1 - index) * stepX,
                     y: plot.minY + CGFloat(field(samples[index])) / CGFloat(maxRate) * plot.height)
         }
-        drawSeries(Self.downloadColor, samples, point, { $0.rx })
-        drawSeries(Self.uploadColor, samples, point, { $0.tx })
+        // 下载为主序列：线下加低透明面积填充；上传只画线（避免两块填充互相干扰）
+        drawSeries(Self.downloadColor, samples, point, { $0.rx }, areaFill: true)
+        drawSeries(Self.uploadColor, samples, point, { $0.tx }, areaFill: false)
 
         // 线端直接标注当前值（次级文本色）
         drawEndLabel(downloadLabel, near: point(samples.count - 1, { $0.rx }), above: true)
@@ -65,12 +66,21 @@ final class RateGraphView: NSView {
 
     private func drawSeries(_ color: NSColor, _ samples: [RateSample],
                             _ point: (Int, (RateSample) -> UInt64) -> NSPoint,
-                            _ field: @escaping (RateSample) -> UInt64) {
+                            _ field: @escaping (RateSample) -> UInt64,
+                            areaFill: Bool) {
         let path = NSBezierPath()
         path.move(to: point(0, field))
         for i in 1..<samples.count { path.line(to: point(i, field)) }
+        if areaFill {
+            let fill = path.copy() as! NSBezierPath
+            fill.line(to: NSPoint(x: point(samples.count - 1, field).x, y: bounds.minY + 4))
+            fill.line(to: NSPoint(x: point(0, field).x, y: bounds.minY + 4))
+            fill.close()
+            color.withAlphaComponent(0.14).setFill()
+            fill.fill()
+        }
         color.setStroke()
-        path.lineWidth = 2
+        path.lineWidth = 2.5
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
         path.stroke()

@@ -15,4 +15,11 @@ enum ByteFormat {
     static func rate(_ bytesPerSecond: UInt64) -> String {
         string(bytesPerSecond) + "/s"
     }
+
+    /// 拆分速率文本为数值与单位（大字号混排用），如 1_200_000 -> ("1.2", "MB/s")
+    static func rateParts(_ bytesPerSecond: UInt64) -> (value: String, unit: String) {
+        let text = rate(bytesPerSecond)
+        guard let space = text.firstIndex(of: " ") else { return (text, "") }
+        return (String(text[..<space]), String(text[text.index(after: space)...]))
+    }
 }

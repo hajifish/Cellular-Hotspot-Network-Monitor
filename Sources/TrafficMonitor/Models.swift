@@ -1,6 +1,11 @@
 enum InterfaceCategory: Hashable {
     case wifi
     case iphone
+
+    /// 用户可见名称（菜单与主页共用）
+    var displayName: String {
+        self == .wifi ? "Wi-Fi" : "iPhone Share"
+    }
 }
 
 struct InterfaceCounters: Equatable {

@@ -90,11 +90,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem.button?.title = monitor.menuBarTitle
         startTimeItem.title = "开始于 \(monitor.store.startTime.formatted(date: .omitted, time: .shortened))"
         startTimeItem.isEnabled = false
-        wifiItem.title = Self.row("Wi-Fi",
+        wifiItem.title = Self.row(InterfaceCategory.wifi.displayName,
                                   rx: monitor.store.wifiRX, tx: monitor.store.wifiTX,
                                   rate: monitor.wifiRate)
         wifiItem.isEnabled = false
-        iphoneItem.title = Self.row("iPhone",
+        iphoneItem.title = Self.row(InterfaceCategory.iphone.displayName,
                                     rx: monitor.store.iphoneRX, tx: monitor.store.iphoneTX,
                                     rate: monitor.iphoneRate)
         iphoneItem.isEnabled = false

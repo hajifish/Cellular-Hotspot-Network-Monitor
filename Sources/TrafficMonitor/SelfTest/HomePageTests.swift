@@ -2,6 +2,16 @@ enum HomePageTests {
     static func all() {
         niceMaximumRoundUp()
         durationTextFormatting()
+        ratePartsSplit()
+    }
+
+    static func ratePartsSplit() {
+        let parts = ByteFormat.rateParts(1_200_000)
+        TestRun.expectEqual(parts.value, "1.2", "rate value part")
+        TestRun.expectEqual(parts.unit, "MB/s", "rate unit part")
+        let zero = ByteFormat.rateParts(0)
+        TestRun.expectEqual(zero.value, "0", "zero value part")
+        TestRun.expectEqual(zero.unit, "B/s", "zero unit part")
     }
 
     static func niceMaximumRoundUp() {
