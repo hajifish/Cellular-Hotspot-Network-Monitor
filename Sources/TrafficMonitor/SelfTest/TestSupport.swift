@@ -47,6 +47,7 @@ enum SelfTest {
         TestRun.suite("TrafficMonitor") { TrafficMonitorTests.all() }
         TestRun.suite("RateHistory") { RateHistoryTests.all() }
         TestRun.suite("HomePage") { HomePageTests.all() }
+        TestRun.suite("TrafficAlert") { TrafficAlertTests.all() }
         TestRun.finish()
     }
 }

@@ -17,6 +17,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleExecutable</key><string>TrafficMonitor</string>
     <key>CFBundleIdentifier</key><string>local.shin.TrafficMonitor</string>
     <key>CFBundleName</key><string>Traffic Monitor</string>
+    <key>CFBundleDisplayName</key><string>Traffic Monitor</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundleVersion</key><string>1</string>
