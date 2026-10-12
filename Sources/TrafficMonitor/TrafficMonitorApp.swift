@@ -29,7 +29,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var wifiItem: NSMenuItem!
     private var iphoneItem: NSMenuItem!
     private var alertMenu: NSMenu!
+    private var alertItem: NSMenuItem!
+    private var displayModeMenu: NSMenu!
     private var changeObserverID: UUID?
+    private var displayMode: MenuBarDisplayMode = .ratesOnly
 
     static func run() {
         let app = NSApplication.shared
@@ -44,6 +47,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         homeController = HomePageController(monitor: monitor)
         super.init()
         restoreAlertThreshold()
+        if let raw = UserDefaults.standard.string(forKey: "menuBarDisplayMode"),
+           let mode = MenuBarDisplayMode(rawValue: raw) {
+            displayMode = mode
+        }
     }
 
     private func install() {
@@ -63,15 +70,20 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         openHome.target = self
         let quit = NSMenuItem(title: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        let alertItem = NSMenuItem(title: "流量告警", action: nil, keyEquivalent: "")
+        alertItem = NSMenuItem(title: "流量告警", action: nil, keyEquivalent: "")
         alertMenu = buildAlertMenu()
         alertItem.submenu = alertMenu
+
+        let displayItem = NSMenuItem(title: "状态栏显示", action: nil, keyEquivalent: "")
+        displayModeMenu = buildDisplayModeMenu()
+        displayItem.submenu = displayModeMenu
 
         menu.addItem(startTimeItem)
         menu.addItem(.separator())
         menu.addItem(wifiItem)
         menu.addItem(iphoneItem)
         menu.addItem(.separator())
+        menu.addItem(displayItem)
         menu.addItem(openHome)
         menu.addItem(alertItem)
         menu.addItem(reset)
@@ -88,6 +100,53 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // 诊断/验证用：启动即打开主页
         if ProcessInfo.processInfo.environment["TRAFFICMONITOR_SHOWHOME"] == "1" {
             homeController.show()
+        }
+    }
+
+    // MARK: - 状态栏显示模式
+
+    private func buildDisplayModeMenu() -> NSMenu {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        for mode in MenuBarDisplayMode.allCases {
+            let item = NSMenuItem(title: mode.label, action: #selector(selectDisplayMode(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = mode.rawValue
+            submenu.addItem(item)
+        }
+        return submenu
+    }
+
+    @objc private func selectDisplayMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let mode = MenuBarDisplayMode(rawValue: raw) else { return }
+        displayMode = mode
+        UserDefaults.standard.set(raw, forKey: "menuBarDisplayMode")
+        refreshDisplayModeStates()
+        refresh()
+    }
+
+    private func refreshDisplayModeStates() {
+        for item in displayModeMenu.items {
+            item.state = (item.representedObject as? String) == displayMode.rawValue ? .on : .off
+        }
+    }
+
+    /// 状态栏图标：已设告警时显示铃铛（橙=已武装，红=已触发），否则仅图标模式下显示网络符号
+    private func updateStatusBarMarker() {
+        guard let button = statusItem.button else { return }
+        let armed = alert.threshold != nil
+        if armed {
+            let symbolName = alert.fired ? "bell.badge.fill" : "bell.fill"
+            button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "流量告警")
+                ?? NSImage(systemSymbolName: "bell.fill", accessibilityDescription: "流量告警")
+            button.contentTintColor = alert.fired ? .systemRed : .systemOrange
+        } else if displayMode == .iconOnly {
+            button.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Traffic Monitor")
+            button.contentTintColor = nil
+        } else {
+            button.image = nil
+            button.contentTintColor = nil
         }
     }
 
@@ -257,20 +316,29 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         refresh()
         refreshAlertMenuStates()
+        refreshDisplayModeStates()
     }
 
     private func refresh() {
-        statusItem.button?.title = monitor.menuBarTitle
-        startTimeItem.title = "开始于 \(monitor.store.startTime.formatted(date: .omitted, time: .shortened))"
-        startTimeItem.isEnabled = false
-        wifiItem.title = Self.row(InterfaceCategory.wifi.displayName,
-                                  rx: monitor.store.wifiRX, tx: monitor.store.wifiTX,
-                                  rate: monitor.wifiRate)
-        wifiItem.isEnabled = false
-        iphoneItem.title = Self.row(InterfaceCategory.iphone.displayName,
-                                    rx: monitor.store.iphoneRX, tx: monitor.store.iphoneTX,
-                                    rate: monitor.iphoneRate)
-        iphoneItem.isEnabled = false
+        let store = monitor.store
+        let button = statusItem.button
+        button?.title = StatusBarFormatter.text(for: displayMode,
+                                                totalRate: monitor.totalRate,
+                                                totalRX: store.wifiRX + store.iphoneRX,
+                                                totalTX: store.wifiTX + store.iphoneTX) ?? ""
+        updateStatusBarMarker()
+
+        startTimeItem.attributedTitle = MenuTextBuilder.startTimeRow(
+            startDate: store.startTime,
+            elapsedSeconds: Int(Date().timeIntervalSince(store.startTime)))
+        wifiItem.attributedTitle = MenuTextBuilder.interfaceRow(
+            name: InterfaceCategory.wifi.displayName,
+            rx: store.wifiRX, tx: store.wifiTX, rate: monitor.wifiRate)
+        iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
+            name: InterfaceCategory.iphone.displayName,
+            rx: store.iphoneRX, tx: store.iphoneTX, rate: monitor.iphoneRate)
+        alertItem.attributedTitle = MenuTextBuilder.alertHeader(
+            armed: alert.threshold != nil, fired: alert.fired)
     }
 
     private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {

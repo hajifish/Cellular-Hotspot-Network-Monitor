@@ -11,18 +11,18 @@ enum TrafficMonitorTests {
     }
 
     static func all() {
-        menuBarTitleShowsRates()
+        totalRateSumsCategories()
         updateAccumulatesTotalsAndRates()
         resetZeroesRatesAndStore()
         firstSampleIsBaselineNotCounted()
     }
 
-    static func menuBarTitleShowsRates() {
+    static func totalRateSumsCategories() {
         let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
-        monitor.update(from: [sample("en0", .wifi, rx: 100, tx: 50)])
-        monitor.update(from: [sample("en0", .wifi, rx: 1_100, tx: 1_050)])
-        // wifi 速率 rx=1000 tx=1000，无 iphone
-        TestRun.expectEqual(monitor.menuBarTitle, "↑1.0 KB/s ↓1.0 KB/s", "menubar title")
+        monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0), sample("en5", .iphone, rx: 0, tx: 0)])
+        monitor.update(from: [sample("en0", .wifi, rx: 1_000, tx: 500),
+                              sample("en5", .iphone, rx: 200, tx: 100)])
+        TestRun.expectEqual(monitor.totalRate, CategoryDelta(rx: 1_200, tx: 600), "totalRate")
     }
 
     static func updateAccumulatesTotalsAndRates() {

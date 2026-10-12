@@ -23,11 +23,6 @@ final class TrafficMonitor {
         previousCounters = Self.counterMap(from: sampler.sample())
     }
 
-    /// 菜单栏标题：总实时速率 ↑tx ↓rx
-    var menuBarTitle: String {
-        "↑\(ByteFormat.rate(totalRate.tx)) ↓\(ByteFormat.rate(totalRate.rx))"
-    }
-
     /// 全部类别的总速率
     var totalRate: CategoryDelta {
         CategoryDelta(rx: wifiRate.rx + iphoneRate.rx, tx: wifiRate.tx + iphoneRate.tx)
