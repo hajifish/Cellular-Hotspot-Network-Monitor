@@ -4,7 +4,7 @@ enum InterfaceCategory: Hashable {
 
     /// 用户可见名称（菜单与主页共用）
     var displayName: String {
-        self == .wifi ? "Wi-Fi" : "iPhone Share"
+        self == .wifi ? "Wi-Fi" : "iPhone"
     }
 }
 

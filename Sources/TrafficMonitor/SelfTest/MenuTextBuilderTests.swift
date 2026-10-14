@@ -7,11 +7,11 @@ enum MenuTextBuilderTests {
     }
 
     static func interfaceRowContainsNameAndArrows() {
-        let row = MenuTextBuilder.interfaceRow(name: "iPhone Share",
+        let row = MenuTextBuilder.interfaceRow(name: "iPhone",
                                                rx: 4_500_000_000, tx: 80_000_000,
                                                rate: CategoryDelta(rx: 1_200, tx: 300))
         let plain = row.string
-        TestRun.expect(plain.contains("iPhone Share"), "row has name")
+        TestRun.expect(plain.contains("iPhone"), "row has name")
         TestRun.expect(plain.contains("↓"), "row has download arrow")
         TestRun.expect(plain.contains("↑"), "row has upload arrow")
         TestRun.expect(plain.contains("4.5 GB"), "row has rx total")

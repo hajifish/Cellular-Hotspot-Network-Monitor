@@ -6,10 +6,9 @@ final class HomePageController {
     private let monitor: TrafficMonitor
     private let window: NSWindow
     private let graphView = RateGraphView()
-    private var headerLabel: NSTextField!
     private var heroDownload: NSTextField!
     private var heroUpload: NSTextField!
-    private var cards: [InterfaceCategory: (rate: NSTextField, total: NSTextField, title: NSTextField)] = [:]
+    private var cards: [InterfaceCategory: (rate: NSTextField, total: NSTextField, title: NSTextField, meta: NSTextField)] = [:]
     private var legendLabel: NSTextField!
     private var observerID: UUID?
 
@@ -18,7 +17,7 @@ final class HomePageController {
 
     init(monitor: TrafficMonitor) {
         self.monitor = monitor
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 490),
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
@@ -50,59 +49,56 @@ final class HomePageController {
     // MARK: - UI 构建
 
     private func buildUI() {
-        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 480))
+        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 490))
         visual.material = .hudWindow
         visual.blendingMode = .behindWindow
         visual.state = .active
         window.contentView = visual
         let content = visual
 
-        // 头部：开始时间 + 已运行（开始计时时间按要求显眼展示）
-        headerLabel = makeLabel(size: 13, color: .secondaryLabelColor, weight: .medium)
-        headerLabel.frame = NSRect(x: 24, y: 420, width: 672, height: 20)
-        content.addSubview(headerLabel)
-
         // Hero 总速率
-        let hero = roundedCard(frame: NSRect(x: 24, y: 306, width: 672, height: 100))
+        let hero = roundedCard(frame: NSRect(x: 24, y: 364, width: 672, height: 96))
         content.addSubview(hero)
         heroDownload = bigRateLabel()
-        heroDownload.frame = NSRect(x: 28, y: 22, width: 320, height: 52)
+        heroDownload.frame = NSRect(x: 28, y: 20, width: 320, height: 52)
         hero.contentView?.addSubview(heroDownload)
         heroUpload = bigRateLabel()
-        heroUpload.frame = NSRect(x: 364, y: 22, width: 300, height: 52)
+        heroUpload.frame = NSRect(x: 364, y: 20, width: 300, height: 52)
         hero.contentView?.addSubview(heroUpload)
 
-        // 接口卡片
+        // 接口卡片（每个计量模块内含自己的开始时间与已运行时长）
         let cardSpecs: [(InterfaceCategory, CGFloat)] = [
             (.wifi, 24),
             (.iphone, 376),
         ]
         for (category, x) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: x, y: 174, width: 320, height: 116))
+            let card = roundedCard(frame: NSRect(x: x, y: 228, width: 320, height: 122))
             content.addSubview(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 18, y: 82, width: 284, height: 18)
+            title.frame = NSRect(x: 18, y: 88, width: 284, height: 18)
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
-            rate.frame = NSRect(x: 18, y: 42, width: 284, height: 34)
+            rate.frame = NSRect(x: 18, y: 50, width: 284, height: 32)
             let total = makeLabel(size: 12, color: .secondaryLabelColor, weight: .regular)
-            total.frame = NSRect(x: 18, y: 12, width: 284, height: 28)
-            for label in [title, rate, total] {
+            total.frame = NSRect(x: 18, y: 30, width: 284, height: 20)
+            let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
+            meta.frame = NSRect(x: 18, y: 10, width: 284, height: 16)
+            for label in [title, rate, total, meta] {
                 card.contentView?.addSubview(label)
             }
-            cards[category] = (rate, total, title)
+            cards[category] = (rate, total, title, meta)
         }
 
         let sectionLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .medium)
         sectionLabel.stringValue = "实时速率 · 近 120 秒"
-        sectionLabel.frame = NSRect(x: 24, y: 146, width: 672, height: 16)
+        sectionLabel.frame = NSRect(x: 24, y: 196, width: 672, height: 16)
         content.addSubview(sectionLabel)
 
-        graphView.frame = NSRect(x: 24, y: 36, width: 672, height: 104)
+        graphView.frame = NSRect(x: 24, y: 40, width: 672, height: 150)
         content.addSubview(graphView)
 
         legendLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
-        legendLabel.frame = NSRect(x: 24, y: 12, width: 672, height: 18)
+        legendLabel.frame = NSRect(x: 24, y: 14, width: 672, height: 18)
         content.addSubview(legendLabel)
         updateLegend()
     }
@@ -188,7 +184,7 @@ final class HomePageController {
         let store = monitor.store
         let seconds = max(0, Int(Date().timeIntervalSince(store.startTime)))
         let startTime = store.startTime.formatted(.dateTime.hour().minute())
-        headerLabel.stringValue = "开始时间  \(startTime)   ·   已运行 \(Self.durationText(seconds))"
+        let metaText = "开始 \(startTime) · 已运行 \(Self.durationText(seconds))"
 
         let total = monitor.totalRate
         let downParts = ByteFormat.rateParts(total.rx)
@@ -220,6 +216,7 @@ final class HomePageController {
                 value: up.value, unit: up.unit, numberSize: 19, unitSize: 11))
             labels.rate.attributedStringValue = rateText
             labels.total.stringValue = "累计  ↑ \(ByteFormat.string(tx))    ↓ \(ByteFormat.string(rx))"
+            labels.meta.stringValue = metaText
         }
 
         graphView.history = monitor.history
