@@ -4,6 +4,14 @@ enum MenuTextBuilderTests {
     static func all() {
         interfaceRowContainsNameAndArrows()
         alertHeaderReflectsState()
+        bellAttachmentHasGlyph()
+    }
+
+    static func bellAttachmentHasGlyph() {
+        let bell = MenuTextBuilder.bellAttachment(fired: false)
+        TestRun.expect(bell.string.contains("\u{FFFC}"), "bell is an attachment glyph")
+        let fired = MenuTextBuilder.bellAttachment(fired: true)
+        TestRun.expect(fired.string.contains("\u{FFFC}"), "fired bell is an attachment glyph")
     }
 
     static func interfaceRowContainsNameAndArrows() {

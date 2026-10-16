@@ -30,9 +30,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var iphoneItem: NSMenuItem!
     private var alertMenu: NSMenu!
     private var alertItem: NSMenuItem!
-    private var displayModeMenu: NSMenu!
     private var changeObserverID: UUID?
-    private var displayMode: MenuBarDisplayMode = .ratesOnly
 
     static func run() {
         let app = NSApplication.shared
@@ -47,10 +45,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         homeController = HomePageController(monitor: monitor)
         super.init()
         restoreAlertThreshold()
-        if let raw = UserDefaults.standard.string(forKey: "menuBarDisplayMode"),
-           let mode = MenuBarDisplayMode(rawValue: raw) {
-            displayMode = mode
-        }
+        StatusBarPrefs.migrateLegacyMode()
     }
 
     private func install() {
@@ -74,16 +69,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alertMenu = buildAlertMenu()
         alertItem.submenu = alertMenu
 
-        let displayItem = NSMenuItem(title: "状态栏显示", action: nil, keyEquivalent: "")
-        displayModeMenu = buildDisplayModeMenu()
-        displayItem.submenu = displayModeMenu
-
         menu.addItem(startTimeItem)
         menu.addItem(.separator())
         menu.addItem(wifiItem)
         menu.addItem(iphoneItem)
         menu.addItem(.separator())
-        menu.addItem(displayItem)
         menu.addItem(openHome)
         menu.addItem(alertItem)
         menu.addItem(reset)
@@ -103,50 +93,39 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    // MARK: - 状态栏显示模式
+    // MARK: - 状态栏内容
 
-    private func buildDisplayModeMenu() -> NSMenu {
-        let submenu = NSMenu()
-        submenu.autoenablesItems = false
-        for mode in MenuBarDisplayMode.allCases {
-            let item = NSMenuItem(title: mode.label, action: #selector(selectDisplayMode(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = mode.rawValue
-            submenu.addItem(item)
-        }
-        return submenu
-    }
-
-    @objc private func selectDisplayMode(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let mode = MenuBarDisplayMode(rawValue: raw) else { return }
-        displayMode = mode
-        UserDefaults.standard.set(raw, forKey: "menuBarDisplayMode")
-        refreshDisplayModeStates()
-        refresh()
-    }
-
-    private func refreshDisplayModeStates() {
-        for item in displayModeMenu.items {
-            item.state = (item.representedObject as? String) == displayMode.rawValue ? .on : .off
-        }
-    }
-
-    /// 状态栏图标：已设告警时显示铃铛（橙=已武装，红=已触发），否则仅图标模式下显示网络符号
-    private func updateStatusBarMarker() {
+    /// 状态栏：仅图标模式下显示软件 `↑↓` 符号 + 按双开关拼文字 + 告警铃铛后缀
+    private func updateStatusBarContent() {
         guard let button = statusItem.button else { return }
-        let armed = alert.threshold != nil
-        if armed {
-            let symbolName = alert.fired ? "bell.badge.fill" : "bell.fill"
-            button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "流量告警")
-                ?? NSImage(systemSymbolName: "bell.fill", accessibilityDescription: "流量告警")
-            button.contentTintColor = alert.fired ? .systemRed : .systemOrange
-        } else if displayMode == .iconOnly {
-            button.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Traffic Monitor")
-            button.contentTintColor = nil
-        } else {
+        let store = monitor.store
+        let text = StatusBarFormatter.text(showRates: StatusBarPrefs.showRates,
+                                           showTotals: StatusBarPrefs.showTotals,
+                                           totalRate: monitor.totalRate,
+                                           totalRX: store.wifiRX + store.iphoneRX,
+                                           totalTX: store.wifiTX + store.iphoneTX)
+
+        var content = NSMutableAttributedString()
+        if let text {
             button.image = nil
-            button.contentTintColor = nil
+            content.append(NSAttributedString(string: text, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
+                .foregroundColor: NSColor.labelColor,
+            ]))
+        } else {
+            // 只显示图标：app 本体符号
+            button.image = NSImage(systemSymbolName: "arrow.up.arrow.down",
+                                   accessibilityDescription: "Traffic Monitor")
+        }
+
+        if alert.threshold != nil {
+            if content.length > 0 { content.append(NSAttributedString(string: " ")) }
+            content.append(MenuTextBuilder.bellAttachment(fired: alert.fired))
+            button.title = ""
+            button.attributedTitle = content
+        } else {
+            button.attributedTitle = NSAttributedString(string: "")
+            button.title = text ?? ""
         }
     }
 
@@ -316,18 +295,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         refresh()
         refreshAlertMenuStates()
-        refreshDisplayModeStates()
     }
 
     private func refresh() {
-        let store = monitor.store
-        let button = statusItem.button
-        button?.title = StatusBarFormatter.text(for: displayMode,
-                                                totalRate: monitor.totalRate,
-                                                totalRX: store.wifiRX + store.iphoneRX,
-                                                totalTX: store.wifiTX + store.iphoneTX) ?? ""
-        updateStatusBarMarker()
+        updateStatusBarContent()
 
+        let store = monitor.store
         startTimeItem.attributedTitle = MenuTextBuilder.startTimeRow(
             startDate: store.startTime,
             elapsedSeconds: Int(Date().timeIntervalSince(store.startTime)))

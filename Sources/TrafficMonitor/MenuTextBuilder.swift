@@ -57,4 +57,30 @@ enum MenuTextBuilder {
         return NSAttributedString(string: "● 流量告警", attributes:
             attributes(size: 13, color: color, weight: .semibold))
     }
+
+    /// 状态栏铃铛后缀：已武装为橙、触发后变红
+    static func bellAttachment(fired: Bool) -> NSAttributedString {
+        let color = fired ? NSColor.systemRed : NSColor.systemOrange
+        let symbolName = fired ? "bell.badge.fill" : "bell.fill"
+        let image = tintedSymbol(symbolName, color: color, size: 11)
+            ?? tintedSymbol("bell.fill", color: color, size: 11)
+            ?? NSImage(size: NSSize(width: 11, height: 11))
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        attachment.bounds = NSRect(x: 0, y: -1, width: 11, height: 11)
+        return NSAttributedString(attachment: attachment)
+    }
+
+    /// 用 sourceAtop 给模板符号图着色
+    static func tintedSymbol(_ name: String, color: NSColor, size: CGFloat) -> NSImage? {
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
+        let configured = symbol.withSymbolConfiguration(.init(pointSize: size, weight: .medium)) ?? symbol
+        let output = NSImage(size: NSSize(width: size, height: size))
+        output.lockFocus()
+        configured.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
+        color.set()
+        NSRect(x: 0, y: 0, width: size, height: size).fill(using: .sourceAtop)
+        output.unlockFocus()
+        return output
+    }
 }

@@ -17,7 +17,7 @@ final class HomePageController {
 
     init(monitor: TrafficMonitor) {
         self.monitor = monitor
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 490),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 522),
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
@@ -49,21 +49,34 @@ final class HomePageController {
     // MARK: - UI 构建
 
     private func buildUI() {
-        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 490))
+        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 522))
         visual.material = .hudWindow
         visual.blendingMode = .behindWindow
         visual.state = .active
         window.contentView = visual
         let content = visual
 
+        // 顶部：状态栏显示开关（两个独立选择；都关 = 状态栏只显示图标）
+        let toggleLabel = makeLabel(size: 12, color: .secondaryLabelColor, weight: .medium)
+        toggleLabel.stringValue = "状态栏显示"
+        toggleLabel.frame = NSRect(x: 24, y: 456, width: 90, height: 20)
+        content.addSubview(toggleLabel)
+        ratesToggle = pillToggle(title: "实时速率", action: #selector(toggleRates))
+        ratesToggle.frame = NSRect(x: 122, y: 452, width: 100, height: 26)
+        content.addSubview(ratesToggle)
+        totalsToggle = pillToggle(title: "累计流量", action: #selector(toggleTotals))
+        totalsToggle.frame = NSRect(x: 230, y: 452, width: 100, height: 26)
+        content.addSubview(totalsToggle)
+        refreshToggles()
+
         // Hero 总速率
-        let hero = roundedCard(frame: NSRect(x: 24, y: 364, width: 672, height: 96))
+        let hero = roundedCard(frame: NSRect(x: 24, y: 330, width: 672, height: 100))
         content.addSubview(hero)
         heroDownload = bigRateLabel()
-        heroDownload.frame = NSRect(x: 28, y: 20, width: 320, height: 52)
+        heroDownload.frame = NSRect(x: 28, y: 22, width: 320, height: 52)
         hero.contentView?.addSubview(heroDownload)
         heroUpload = bigRateLabel()
-        heroUpload.frame = NSRect(x: 364, y: 20, width: 300, height: 52)
+        heroUpload.frame = NSRect(x: 364, y: 22, width: 300, height: 52)
         hero.contentView?.addSubview(heroUpload)
 
         // 接口卡片（每个计量模块内含自己的开始时间与已运行时长）
@@ -72,7 +85,7 @@ final class HomePageController {
             (.iphone, 376),
         ]
         for (category, x) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: x, y: 228, width: 320, height: 122))
+            let card = roundedCard(frame: NSRect(x: x, y: 192, width: 320, height: 122))
             content.addSubview(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
@@ -91,16 +104,67 @@ final class HomePageController {
 
         let sectionLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .medium)
         sectionLabel.stringValue = "实时速率 · 近 120 秒"
-        sectionLabel.frame = NSRect(x: 24, y: 196, width: 672, height: 16)
+        sectionLabel.frame = NSRect(x: 24, y: 160, width: 672, height: 16)
         content.addSubview(sectionLabel)
 
-        graphView.frame = NSRect(x: 24, y: 40, width: 672, height: 150)
+        graphView.frame = NSRect(x: 24, y: 36, width: 672, height: 118)
         content.addSubview(graphView)
 
         legendLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
-        legendLabel.frame = NSRect(x: 24, y: 14, width: 672, height: 18)
+        legendLabel.frame = NSRect(x: 24, y: 12, width: 672, height: 18)
         content.addSubview(legendLabel)
         updateLegend()
+    }
+
+    // MARK: - 状态栏显示开关
+
+    private var ratesToggle: NSButton!
+    private var totalsToggle: NSButton!
+
+    private func pillToggle(title: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 13
+        return button
+    }
+
+    private func refreshToggles() {
+        stylePill(ratesToggle, on: StatusBarPrefs.showRates)
+        stylePill(totalsToggle, on: StatusBarPrefs.showTotals)
+    }
+
+    /// 胶囊样式：选中=验证过的深色蓝底白字；未选=描边灰字
+    private func stylePill(_ button: NSButton?, on: Bool) {
+        guard let button, let layer = button.layer else { return }
+        layer.cornerRadius = 13
+        layer.borderWidth = 1
+        if on {
+            layer.backgroundColor = NSColor(srgbRed: 0x39 / 255.0, green: 0x87 / 255.0,
+                                            blue: 0xe5 / 255.0, alpha: 1).cgColor // #3987e5
+            layer.borderColor = NSColor.clear.cgColor
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
+                .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: NSColor.white,
+            ])
+        } else {
+            layer.backgroundColor = NSColor.white.withAlphaComponent(0.07).cgColor
+            layer.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
+            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
+                .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+        }
+    }
+
+    @objc private func toggleRates() {
+        StatusBarPrefs.showRates.toggle()
+        refreshToggles()
+    }
+
+    @objc private func toggleTotals() {
+        StatusBarPrefs.showTotals.toggle()
+        refreshToggles()
     }
 
     private func roundedCard(frame: NSRect) -> NSBox {
