@@ -2,38 +2,35 @@ enum StatusBarFormatterTests {
     private static let rate = CategoryDelta(rx: 1_200, tx: 300)
 
     static func all() {
-        ratesOnlyContainsRates()
-        totalsOnlyContainsTotals()
-        bothContainsBoth()
+        ratesOnlyContainsCompactRates()
+        totalsOnlyContainsCompactTotals()
+        bothIsTwoLineStacked()
         bothOffIsNil()
     }
 
-    static func ratesOnlyContainsRates() {
-        let text = StatusBarFormatter.text(showRates: true, showTotals: false,
-                                           totalRate: rate, totalRX: 0, totalTX: 0)
-        TestRun.expectEqual(text, "↑300 B/s ↓1.2 KB/s", "rates only")
+    static func ratesOnlyContainsCompactRates() {
+        let text = StatusBarFormatter.attributed(showRates: true, showTotals: false,
+                                                 totalRate: rate, totalRX: 0, totalTX: 0)?.string
+        TestRun.expectEqual(text, "↑300B/s ↓1.2KB/s", "rates only compact")
     }
 
-    static func totalsOnlyContainsTotals() {
-        let text = StatusBarFormatter.text(showRates: false, showTotals: true,
-                                           totalRate: rate,
-                                           totalRX: 8_100_000_000, totalTX: 2_300_000_000)
-        TestRun.expectEqual(text, "↑2.3 GB ↓8.1 GB", "totals only")
+    static func totalsOnlyContainsCompactTotals() {
+        let text = StatusBarFormatter.attributed(showRates: false, showTotals: true,
+                                                 totalRate: rate,
+                                                 totalRX: 8_100_000_000, totalTX: 2_300_000_000)?.string
+        TestRun.expectEqual(text, "↑2.3GB ↓8.1GB", "totals only compact")
     }
 
-    static func bothContainsBoth() {
-        let text = StatusBarFormatter.text(showRates: true, showTotals: true,
-                                           totalRate: rate,
-                                           totalRX: 8_100_000_000, totalTX: 2_300_000_000)
-        TestRun.expect(text?.contains("↑2.3 GB") == true, "both has up total")
-        TestRun.expect(text?.contains("↓8.1 GB") == true, "both has down total")
-        TestRun.expect(text?.contains("300 B/s") == true, "both has up rate")
-        TestRun.expect(text?.contains("1.2 KB/s") == true, "both has down rate")
+    static func bothIsTwoLineStacked() {
+        let text = StatusBarFormatter.attributed(showRates: true, showTotals: true,
+                                                 totalRate: rate,
+                                                 totalRX: 8_100_000_000, totalTX: 2_300_000_000)?.string
+        TestRun.expectEqual(text, "↑300B/s ↓1.2KB/s\n↑2.3GB ↓8.1GB", "stacked two lines")
     }
 
     static func bothOffIsNil() {
-        let text = StatusBarFormatter.text(showRates: false, showTotals: false,
-                                           totalRate: rate, totalRX: 0, totalTX: 0)
+        let text = StatusBarFormatter.attributed(showRates: false, showTotals: false,
+                                                 totalRate: rate, totalRX: 0, totalTX: 0)
         TestRun.expect(text == nil, "both off hides text")
     }
 }

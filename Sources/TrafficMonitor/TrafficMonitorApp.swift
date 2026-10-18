@@ -95,23 +95,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: - 状态栏内容
 
-    /// 状态栏：仅图标模式下显示软件 `↑↓` 符号 + 按双开关拼文字 + 告警铃铛后缀
+    /// 状态栏：仅图标模式下显示软件 `↑↓` 符号 + 按双开关拼文字（同开时上下两行）+ 告警铃铛后缀
     private func updateStatusBarContent() {
         guard let button = statusItem.button else { return }
         let store = monitor.store
-        let text = StatusBarFormatter.text(showRates: StatusBarPrefs.showRates,
-                                           showTotals: StatusBarPrefs.showTotals,
-                                           totalRate: monitor.totalRate,
-                                           totalRX: store.wifiRX + store.iphoneRX,
-                                           totalTX: store.wifiTX + store.iphoneTX)
 
         var content = NSMutableAttributedString()
-        if let text {
+        if let attributed = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,
+                                                          showTotals: StatusBarPrefs.showTotals,
+                                                          totalRate: monitor.totalRate,
+                                                          totalRX: store.wifiRX + store.iphoneRX,
+                                                          totalTX: store.wifiTX + store.iphoneTX) {
             button.image = nil
-            content.append(NSAttributedString(string: text, attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
-                .foregroundColor: NSColor.labelColor,
-            ]))
+            content.append(attributed)
         } else {
             // 只显示图标：app 本体符号
             button.image = NSImage(systemSymbolName: "arrow.up.arrow.down",
@@ -125,7 +121,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             button.attributedTitle = content
         } else {
             button.attributedTitle = NSAttributedString(string: "")
-            button.title = text ?? ""
+            button.title = content.string
         }
     }
 
