@@ -51,6 +51,7 @@ enum SelfTest {
         TestRun.suite("MilestoneTracker") { MilestoneTrackerTests.all() }
         TestRun.suite("StatusBarFormatter") { StatusBarFormatterTests.all() }
         TestRun.suite("MenuTextBuilder") { MenuTextBuilderTests.all() }
+        TestRun.suite("UpdateModels") { UpdateModelsTests.all() }
         TestRun.finish()
     }
 }
