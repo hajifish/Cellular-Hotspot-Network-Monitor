@@ -14,13 +14,14 @@ struct Main {
 }
 
 @MainActor
-final class MenuBarController: NSObject, NSMenuDelegate {
+final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCenterDelegate {
     static let gigabyte: UInt64 = 1_000_000_000
     static let megabyte: UInt64 = 1_000_000
     static let alertDefaultsKey = "alertThresholdBytes"
     static private(set) var shared: MenuBarController!
 
     private let monitor = TrafficMonitor()
+    private let updateService = UpdateService()
     private let homeController: HomePageController
     private let alert = TrafficAlert()
     private let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "alert")
@@ -30,6 +31,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var iphoneItem: NSMenuItem!
     private var alertMenu: NSMenu!
     private var alertItem: NSMenuItem!
+    private var updateInfoItem: NSMenuItem!
+    private var updatePrimaryItem: NSMenuItem!
+    private var updateSecondaryItem: NSMenuItem!
+    private var autoCheckItem: NSMenuItem!
     private var milestoneTracker = MilestoneTracker()
     private var changeObserverID: UUID?
 
@@ -76,6 +81,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(openHome)
         menu.addItem(alertItem)
         menu.addItem(.separator())
+        updateInfoItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        updatePrimaryItem = NSMenuItem(title: "", action: #selector(updatePrimaryAction), keyEquivalent: "")
+        updatePrimaryItem.target = self
+        updateSecondaryItem = NSMenuItem(title: "", action: #selector(updateSecondaryAction), keyEquivalent: "")
+        updateSecondaryItem.target = self
+        autoCheckItem = NSMenuItem(title: "自动检查更新", action: #selector(toggleAutoCheck), keyEquivalent: "")
+        autoCheckItem.target = self
+        autoCheckItem.state = UpdateService.autoCheckEnabled ? .on : .off
+        menu.addItem(updateInfoItem)
+        menu.addItem(updatePrimaryItem)
+        menu.addItem(updateSecondaryItem)
+        menu.addItem(autoCheckItem)
+        menu.addItem(.separator())
         menu.addItem(quit)
 
         statusItem.menu = menu
@@ -100,6 +118,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     fired: self.alert.fired,
                     progressBytes: self.alert.progress(totalBytes: total))
         }
+        updateService.onStateChange = { [weak self] in
+            self?.refreshUpdateItems()
+        }
+        updateService.confirmRestartHandler = { [weak self] release, completion in
+            self?.showRestartConfirm(release: release, completion: completion)
+        }
+        UNUserNotificationCenter.current().delegate = self
+        updateService.startAutomaticChecks()
         monitor.start()
         refresh()
         // 诊断/验证用：启动即打开主页
@@ -351,6 +377,63 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
+    // MARK: - 软件更新
+
+    private func refreshUpdateItems() {
+        let content = UpdatePresentation.menuContent(for: updateService.state,
+                                                     currentVersion: AppVersion.current)
+        updateInfoItem.attributedTitle = NSAttributedString(string: content.info, attributes: [
+            .font: NSFont.systemFont(ofSize: 12, weight: content.infoBold ? .semibold : .regular),
+            .foregroundColor: content.infoBold ? NSColor.labelColor : NSColor.secondaryLabelColor,
+        ])
+        updateInfoItem.isEnabled = false
+        updatePrimaryItem.title = content.primary ?? ""
+        updatePrimaryItem.isHidden = content.primary == nil
+        updatePrimaryItem.isEnabled = content.primaryEnabled
+        updateSecondaryItem.title = content.secondary ?? ""
+        updateSecondaryItem.isHidden = content.secondary == nil
+        updateSecondaryItem.isEnabled = true
+    }
+
+    @objc private func updatePrimaryAction() {
+        switch updateService.state {
+        case .available: updateService.startDownload()
+        case .downloaded: updateService.installNow()
+        default: updateService.checkNow() // idle / upToDate / failed
+        }
+    }
+
+    @objc private func updateSecondaryAction() {
+        switch updateService.state {
+        case .available(let release): openRelease(release)
+        case .downloaded: updateService.cancelStagedUpdate()
+        case .downloading: updateService.cancelDownload()
+        default: break
+        }
+    }
+
+    private func openRelease(_ release: ReleaseInfo) {
+        guard let url = URL(string: release.htmlUrl) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    @objc private func toggleAutoCheck() {
+        UpdateService.autoCheckEnabled.toggle()
+        autoCheckItem.state = UpdateService.autoCheckEnabled ? .on : .off
+        updateService.applyAutoCheckPref()
+    }
+
+    /// 下载完成后的确认弹窗（用户决策：确认后才换包重启）
+    private func showRestartConfirm(release: ReleaseInfo, completion: @escaping (Bool) -> Void) {
+        let dialog = NSAlert()
+        dialog.messageText = "更新已就绪"
+        dialog.informativeText = "新版本 \(release.tagName) 已下载并校验完成。立即重启以完成更新？"
+        dialog.addButton(withTitle: "立即重启")
+        dialog.addButton(withTitle: "稍后")
+        NSApp.activate(ignoringOtherApps: true)
+        completion(dialog.runModal() == .alertFirstButtonReturn)
+    }
+
     @objc private func openHome() {
         homeController.show()
     }
@@ -391,5 +474,24 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {
         "\(name)  ↑\(ByteFormat.string(tx)) ↓\(ByteFormat.string(rx))   \(ByteFormat.rate(rate.rx + rate.tx))"
+    }
+}
+
+extension MenuBarController {
+    /// 点击更新通知 → 打开主页更新卡片
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.notification.request.identifier.hasPrefix("update-") {
+            openHome()
+        }
+        completionHandler()
+    }
+
+    /// 应用前台时通知横幅也显示（对既有告警/里程碑通知同为改善）
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
     }
 }
