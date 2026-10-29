@@ -58,19 +58,6 @@ enum MenuTextBuilder {
             attributes(size: 13, color: color, weight: .semibold))
     }
 
-    /// 状态栏铃铛后缀：已武装为橙、触发后变红
-    static func bellAttachment(fired: Bool) -> NSAttributedString {
-        let color = fired ? NSColor.systemRed : NSColor.systemOrange
-        let symbolName = fired ? "bell.badge.fill" : "bell.fill"
-        let image = tintedSymbol(symbolName, color: color, size: 14)
-            ?? tintedSymbol("bell.fill", color: color, size: 14)
-            ?? NSImage(size: NSSize(width: 14, height: 14))
-        let attachment = NSTextAttachment()
-        attachment.image = image
-        attachment.bounds = NSRect(x: 0, y: -5, width: 14, height: 14)
-        return NSAttributedString(attachment: attachment)
-    }
-
     /// 用 sourceAtop 给模板符号图着色
     static func tintedSymbol(_ name: String, color: NSColor, size: CGFloat) -> NSImage? {
         guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }

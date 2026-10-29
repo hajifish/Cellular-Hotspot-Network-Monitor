@@ -122,11 +122,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             content.append(NSAttributedString(attachment: attachment))
         }
 
-        if alert.threshold != nil {
-            if content.length > 0 { content.append(NSAttributedString(string: "  ")) }
-            content.append(MenuTextBuilder.bellAttachment(fired: alert.fired))
-        }
-
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         button.image = renderedImage(of: content)
@@ -263,10 +258,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let used = ByteFormat.string(usedBytes)
         let limit = ByteFormat.string(alert.threshold ?? 0)
         logger.info("alert fired: used=\(used, privacy: .public) threshold=\(limit, privacy: .public)")
-        NSSound(named: "Glass")?.play() // 柔和钟声，无论通知权限如何都会响
+        NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 流量告警"
         content.body = "自开始计时已使用 \(used)，达到设定的 \(limit)。"
+        content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { [weak self] error in
             if error != nil {
