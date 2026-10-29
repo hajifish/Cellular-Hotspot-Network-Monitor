@@ -28,6 +28,9 @@ final class TrafficMonitor {
         CategoryDelta(rx: wifiRate.rx + iphoneRate.rx, tx: wifiRate.tx + iphoneRate.tx)
     }
 
+    /// 任一模块重置后回调（外部据此重新武装告警等）
+    var onReset: (() -> Void)?
+
     // MARK: - 观察者（UI 刷新）
 
     @discardableResult
@@ -54,7 +57,7 @@ final class TrafficMonitor {
 
     func tick() {
         update(from: sampler.sample())
-        logger.debug("wifiRx=\(self.store.wifiRX, format: .decimal) wifiTx=\(self.store.wifiTX, format: .decimal) iphoneRx=\(self.store.iphoneRX, format: .decimal) iphoneTx=\(self.store.iphoneTX, format: .decimal)")
+        logger.debug("wifiRx=\(self.store.wifi.rx, format: .decimal) wifiTx=\(self.store.wifi.tx, format: .decimal) iphoneRx=\(self.store.iphone.rx, format: .decimal) iphoneTx=\(self.store.iphone.tx, format: .decimal)")
     }
 
     /// 用一份新采样推进状态（测试可直接调用）
@@ -79,12 +82,15 @@ final class TrafficMonitor {
         notifyObservers()
     }
 
-    func reset() {
-        store.reset()
-        wifiRate = .zero
-        iphoneRate = .zero
-        history.clear()
-        notifyObservers()
+    /// 重置指定类别（nil = 全部）的累计并重新开始计时
+    func reset(_ category: InterfaceCategory? = nil) {
+        store.reset(category)
+        if category == nil {
+            wifiRate = .zero
+            iphoneRate = .zero
+            history.clear()
+        }
+        onReset?()
     }
 
     private static func counterMap(from samples: [ClassifiedSample]) -> [String: InterfaceCounters] {

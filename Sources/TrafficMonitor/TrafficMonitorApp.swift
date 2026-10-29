@@ -59,8 +59,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         wifiItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         iphoneItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
-        let reset = NSMenuItem(title: "重置计数", action: #selector(resetCounters), keyEquivalent: "r")
-        reset.target = self
         let openHome = NSMenuItem(title: "打开主页", action: #selector(openHome), keyEquivalent: "0")
         openHome.target = self
         let quit = NSMenuItem(title: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -76,7 +74,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(openHome)
         menu.addItem(alertItem)
-        menu.addItem(reset)
         menu.addItem(.separator())
         menu.addItem(quit)
 
@@ -85,6 +82,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self?.refresh()
             self?.checkAlert()
         }
+        // 任一模块重置后重新武装告警（总流量变小，需要重新越线才会再提醒）
+        monitor.onReset = { [weak self] in self?.alert.reset() }
         monitor.start()
         refresh()
         // 诊断/验证用：启动即打开主页
@@ -108,8 +107,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                                           showTotals: StatusBarPrefs.showTotals,
                                                           textColor: textColor,
                                                           totalRate: monitor.totalRate,
-                                                          totalRX: store.wifiRX + store.iphoneRX,
-                                                          totalTX: store.wifiTX + store.iphoneTX) {
+                                                          totalRX: store.wifi.rx + store.iphone.rx,
+                                                          totalTX: store.wifi.tx + store.iphone.tx) {
             content.append(attributed)
         } else if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
                                                           color: textColor, size: 13) {
@@ -247,8 +246,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     /// 每秒检查：越过阈值则触发一次
     private func checkAlert() {
-        let totalBytes = monitor.store.wifiRX + monitor.store.wifiTX
-            + monitor.store.iphoneRX + monitor.store.iphoneTX
+        let totalBytes = monitor.store.wifi.rx + monitor.store.wifi.tx
+            + monitor.store.iphone.rx + monitor.store.iphone.tx
         if alert.threshold != nil {
             logger.debug("checkAlert total=\(totalBytes, privacy: .public) threshold=\(self.alert.threshold ?? 0, privacy: .public) fired=\(self.alert.fired, privacy: .public)")
         }
@@ -301,12 +300,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         homeController.show()
     }
 
-    @objc private func resetCounters() {
-        monitor.reset()
-        alert.reset()
-        refresh()
-    }
-
     func menuNeedsUpdate(_ menu: NSMenu) {
         refresh()
         refreshAlertMenuStates()
@@ -316,15 +309,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateStatusBarContent()
 
         let store = monitor.store
+        let sessionStart = store.sessionStart
         startTimeItem.attributedTitle = MenuTextBuilder.startTimeRow(
-            startDate: store.startTime,
-            elapsedSeconds: Int(Date().timeIntervalSince(store.startTime)))
+            startDate: sessionStart,
+            elapsedSeconds: Int(Date().timeIntervalSince(sessionStart)))
         wifiItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.wifi.displayName,
-            rx: store.wifiRX, tx: store.wifiTX, rate: monitor.wifiRate)
+            rx: store.wifi.rx, tx: store.wifi.tx, rate: monitor.wifiRate)
         iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.iphone.displayName,
-            rx: store.iphoneRX, tx: store.iphoneTX, rate: monitor.iphoneRate)
+            rx: store.iphone.rx, tx: store.iphone.tx, rate: monitor.iphoneRate)
         alertItem.attributedTitle = MenuTextBuilder.alertHeader(
             armed: alert.threshold != nil, fired: alert.fired)
     }

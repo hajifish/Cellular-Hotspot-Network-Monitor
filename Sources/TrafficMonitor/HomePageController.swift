@@ -1,15 +1,17 @@
 import AppKit
 
-/// 主页窗口：深色玻璃仪表盘，Hero 总速率 + 接口卡片 + 120 秒滚动速率图
+/// 主页窗口：深色玻璃仪表盘，接口卡片（含独立重置）+ 120 秒滚动速率图 + 状态栏开关
 @MainActor
 final class HomePageController {
     private let monitor: TrafficMonitor
     private let window: NSWindow
     private let graphView = RateGraphView()
-    private var heroDownload: NSTextField!
-    private var heroUpload: NSTextField!
     private var cards: [InterfaceCategory: (rate: NSTextField, total: NSTextField, title: NSTextField, meta: NSTextField)] = [:]
     private var legendLabel: NSTextField!
+    private var ratesToggle: NSButton!
+    private var ratesLabel: NSTextField!
+    private var totalsToggle: NSButton!
+    private var totalsLabel: NSTextField!
     private var observerID: UUID?
 
     static let downloadAccent = RateGraphView.downloadColor
@@ -17,7 +19,7 @@ final class HomePageController {
 
     init(monitor: TrafficMonitor) {
         self.monitor = monitor
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 522),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 428),
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
@@ -49,49 +51,51 @@ final class HomePageController {
     // MARK: - UI 构建
 
     private func buildUI() {
-        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 522))
+        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 428))
         visual.material = .hudWindow
         visual.blendingMode = .behindWindow
         visual.state = .active
         window.contentView = visual
         let content = visual
 
-        // 顶部：状态栏显示开关（两个独立选择；都关 = 状态栏只显示图标）
-        let toggleLabel = makeLabel(size: 12, color: .secondaryLabelColor, weight: .medium)
-        toggleLabel.stringValue = "状态栏显示"
-        toggleLabel.frame = NSRect(x: 24, y: 456, width: 90, height: 20)
-        content.addSubview(toggleLabel)
-        ratesToggle = pillToggle(title: "实时速率", action: #selector(toggleRates))
-        ratesToggle.frame = NSRect(x: 122, y: 452, width: 100, height: 26)
+        // 顶部右侧：状态栏显示开关（两个小圆球，选中后右侧浮现文字；都关 = 状态栏只显示图标）
+        ratesToggle = sphereToggle(action: #selector(toggleRates))
+        ratesToggle.frame = NSRect(x: 538, y: 384, width: 18, height: 18)
         content.addSubview(ratesToggle)
-        totalsToggle = pillToggle(title: "累计流量", action: #selector(toggleTotals))
-        totalsToggle.frame = NSRect(x: 230, y: 452, width: 100, height: 26)
+        ratesLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
+        ratesLabel.stringValue = "实时速率"
+        ratesLabel.frame = NSRect(x: 560, y: 386, width: 56, height: 16)
+        content.addSubview(ratesLabel)
+        totalsToggle = sphereToggle(action: #selector(toggleTotals))
+        totalsToggle.frame = NSRect(x: 628, y: 384, width: 18, height: 18)
         content.addSubview(totalsToggle)
+        totalsLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
+        totalsLabel.stringValue = "累计流量"
+        totalsLabel.frame = NSRect(x: 650, y: 386, width: 56, height: 16)
+        content.addSubview(totalsLabel)
         refreshToggles()
 
-        // Hero 总速率
-        let hero = roundedCard(frame: NSRect(x: 24, y: 330, width: 672, height: 100))
-        content.addSubview(hero)
-        heroDownload = bigRateLabel()
-        heroDownload.frame = NSRect(x: 28, y: 22, width: 320, height: 52)
-        hero.contentView?.addSubview(heroDownload)
-        heroUpload = bigRateLabel()
-        heroUpload.frame = NSRect(x: 364, y: 22, width: 300, height: 52)
-        hero.contentView?.addSubview(heroUpload)
-
-        // 接口卡片（每个计量模块内含自己的开始时间与已运行时长）
+        // 接口卡片（每个计量模块内含自己的开始时间与已运行时长，右上角可独立重置）
         let cardSpecs: [(InterfaceCategory, CGFloat)] = [
             (.wifi, 24),
             (.iphone, 376),
         ]
         for (category, x) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: x, y: 192, width: 320, height: 122))
+            let card = roundedCard(frame: NSRect(x: x, y: 240, width: 320, height: 126))
             content.addSubview(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 18, y: 88, width: 284, height: 18)
+            title.frame = NSRect(x: 18, y: 94, width: 180, height: 18)
+            let reset = NSButton(title: "重置计量", target: self, action: #selector(resetCategory(_:)))
+            reset.isBordered = false
+            reset.setFrameOrigin(NSPoint(x: 320 - 74, y: 94))
+            reset.font = .systemFont(ofSize: 10, weight: .medium)
+            reset.contentTintColor = .secondaryLabelColor
+            reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
+            card.contentView?.addSubview(reset)
+
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
-            rate.frame = NSRect(x: 18, y: 50, width: 284, height: 32)
+            rate.frame = NSRect(x: 18, y: 52, width: 284, height: 34)
             let total = makeLabel(size: 12, color: .secondaryLabelColor, weight: .regular)
             total.frame = NSRect(x: 18, y: 30, width: 284, height: 20)
             let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
@@ -104,67 +108,16 @@ final class HomePageController {
 
         let sectionLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .medium)
         sectionLabel.stringValue = "实时速率 · 近 120 秒"
-        sectionLabel.frame = NSRect(x: 24, y: 160, width: 672, height: 16)
+        sectionLabel.frame = NSRect(x: 24, y: 208, width: 672, height: 16)
         content.addSubview(sectionLabel)
 
-        graphView.frame = NSRect(x: 24, y: 36, width: 672, height: 118)
+        graphView.frame = NSRect(x: 24, y: 36, width: 672, height: 166)
         content.addSubview(graphView)
 
         legendLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
         legendLabel.frame = NSRect(x: 24, y: 12, width: 672, height: 18)
         content.addSubview(legendLabel)
         updateLegend()
-    }
-
-    // MARK: - 状态栏显示开关
-
-    private var ratesToggle: NSButton!
-    private var totalsToggle: NSButton!
-
-    private func pillToggle(title: String, action: Selector) -> NSButton {
-        let button = NSButton(title: title, target: self, action: action)
-        button.isBordered = false
-        button.wantsLayer = true
-        button.layer?.cornerRadius = 13
-        return button
-    }
-
-    private func refreshToggles() {
-        stylePill(ratesToggle, on: StatusBarPrefs.showRates)
-        stylePill(totalsToggle, on: StatusBarPrefs.showTotals)
-    }
-
-    /// 胶囊样式：选中=验证过的深色蓝底白字；未选=描边灰字
-    private func stylePill(_ button: NSButton?, on: Bool) {
-        guard let button, let layer = button.layer else { return }
-        layer.cornerRadius = 13
-        layer.borderWidth = 1
-        if on {
-            layer.backgroundColor = NSColor(srgbRed: 0x39 / 255.0, green: 0x87 / 255.0,
-                                            blue: 0xe5 / 255.0, alpha: 1).cgColor // #3987e5
-            layer.borderColor = NSColor.clear.cgColor
-            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-                .foregroundColor: NSColor.white,
-            ])
-        } else {
-            layer.backgroundColor = NSColor.white.withAlphaComponent(0.07).cgColor
-            layer.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
-            button.attributedTitle = NSAttributedString(string: button.title, attributes: [
-                .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ])
-        }
-    }
-
-    @objc private func toggleRates() {
-        StatusBarPrefs.showRates.toggle()
-        refreshToggles()
-    }
-
-    @objc private func toggleTotals() {
-        StatusBarPrefs.showTotals.toggle()
-        refreshToggles()
     }
 
     private func roundedCard(frame: NSRect) -> NSBox {
@@ -181,7 +134,7 @@ final class HomePageController {
     private func makeLabel(size: CGFloat, color: NSColor, weight: NSFont.Weight) -> NSTextField {
         let label = NSTextField(labelWithString: "")
         label.font = .systemFont(ofSize: size, weight: weight)
-        label.textColor = color == .clear ? .labelColor : color
+        label.textColor = color
         label.lineBreakMode = .byWordWrapping
         label.isEditable = false
         label.isBordered = false
@@ -189,11 +142,59 @@ final class HomePageController {
         return label
     }
 
-    private func bigRateLabel() -> NSTextField {
-        let label = makeLabel(size: 30, color: .labelColor, weight: .semibold)
-        label.usesSingleLineMode = true
-        label.lineBreakMode = .byClipping
-        return label
+    /// 小圆球开关：选中=白色实心球，未选=空心环
+    private func sphereToggle(action: Selector) -> NSButton {
+        let button = NSButton(title: "", target: self, action: action)
+        button.isBordered = false
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 9
+        button.title = ""
+        return button
+    }
+
+    private func styleSphere(_ button: NSButton?, on: Bool) {
+        guard let button, let layer = button.layer else { return }
+        layer.cornerRadius = 9
+        if on {
+            layer.backgroundColor = NSColor.white.cgColor
+            layer.borderWidth = 0
+        } else {
+            layer.backgroundColor = NSColor.clear.cgColor
+            layer.borderWidth = 1.5
+            layer.borderColor = NSColor.white.withAlphaComponent(0.45).cgColor
+        }
+    }
+
+    @objc private func toggleRates() {
+        StatusBarPrefs.showRates.toggle()
+        refreshToggles()
+    }
+
+    @objc private func toggleTotals() {
+        StatusBarPrefs.showTotals.toggle()
+        refreshToggles()
+    }
+
+    private func refreshToggles() {
+        styleSphere(ratesToggle, on: StatusBarPrefs.showRates)
+        styleSphere(totalsToggle, on: StatusBarPrefs.showTotals)
+        ratesLabel.isHidden = !StatusBarPrefs.showRates
+        totalsLabel.isHidden = !StatusBarPrefs.showTotals
+    }
+
+    // MARK: - 按模块重置
+
+    @objc private func resetCategory(_ sender: NSButton) {
+        let category: InterfaceCategory = sender.identifier?.rawValue == "wifi" ? .wifi : .iphone
+        let name = category.displayName
+        let dialog = NSAlert()
+        dialog.messageText = "重置\(name)计量？"
+        dialog.informativeText = "将清零 \(name) 模块的累计流量并重新开始计时，此操作不可撤销。"
+        dialog.addButton(withTitle: "确认重置")
+        dialog.addButton(withTitle: "取消")
+        NSApp.activate(ignoringOtherApps: true)
+        guard dialog.runModal() == .alertFirstButtonReturn else { return }
+        monitor.reset(category)
     }
 
     /// 大号速率文本：彩色箭头 + 等宽数字 + 缩小单位
@@ -245,27 +246,9 @@ final class HomePageController {
     // MARK: - 刷新
 
     private func refresh() {
-        let store = monitor.store
-        let seconds = max(0, Int(Date().timeIntervalSince(store.startTime)))
-        let startTime = store.startTime.formatted(.dateTime.hour().minute())
-        let metaText = "开始 \(startTime) · 已运行 \(Self.durationText(seconds))"
-
-        let total = monitor.totalRate
-        let downParts = ByteFormat.rateParts(total.rx)
-        let upParts = ByteFormat.rateParts(total.tx)
-        heroDownload.attributedStringValue = Self.attributedRate(
-            arrow: "↓", accent: Self.downloadAccent,
-            value: downParts.value, unit: downParts.unit,
-            numberSize: 32, unitSize: 15)
-        heroUpload.attributedStringValue = Self.attributedRate(
-            arrow: "↑", accent: Self.uploadAccent,
-            value: upParts.value, unit: upParts.unit,
-            numberSize: 32, unitSize: 15)
-
         for (category, labels) in cards {
+            let usage = monitor.store.usage(for: category)
             let name = category.displayName
-            let rx = category == .wifi ? store.wifiRX : store.iphoneRX
-            let tx = category == .wifi ? store.wifiTX : store.iphoneTX
             let rate = category == .wifi ? monitor.wifiRate : monitor.iphoneRate
             let interface = monitor.interfaceByCategory[category].map { "  ·  \($0)" } ?? ""
             labels.title.stringValue = "\(name)\(interface)"
@@ -274,22 +257,20 @@ final class HomePageController {
             let rateText = NSMutableAttributedString(attributedString: Self.attributedRate(
                 arrow: "↓", accent: Self.downloadAccent,
                 value: down.value, unit: down.unit, numberSize: 19, unitSize: 11))
-            rateText.append(Self.spacer(width: 18))
+            rateText.append(NSAttributedString(string: "   ", attributes: [:]))
             rateText.append(Self.attributedRate(
                 arrow: "↑", accent: Self.uploadAccent,
                 value: up.value, unit: up.unit, numberSize: 19, unitSize: 11))
             labels.rate.attributedStringValue = rateText
-            labels.total.stringValue = "累计  ↑ \(ByteFormat.string(tx))    ↓ \(ByteFormat.string(rx))"
-            labels.meta.stringValue = metaText
+            labels.total.stringValue = "累计  ↑ \(ByteFormat.string(usage.tx))    ↓ \(ByteFormat.string(usage.rx))"
+            let seconds = max(0, Int(Date().timeIntervalSince(usage.startTime)))
+            labels.meta.stringValue = "开始 \(usage.startTime.formatted(date: .omitted, time: .shortened)) · 已运行 \(Self.durationText(seconds))"
         }
 
         graphView.history = monitor.history
+        let total = monitor.totalRate
         graphView.downloadLabel = "↓\(ByteFormat.rate(total.rx))"
         graphView.uploadLabel = "↑\(ByteFormat.rate(total.tx))"
-    }
-
-    private static func spacer(width: CGFloat) -> NSAttributedString {
-        NSAttributedString(string: " ", attributes: [.kern: width])
     }
 }
 
