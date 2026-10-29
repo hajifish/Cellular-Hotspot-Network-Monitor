@@ -12,3 +12,4 @@ xcuserdata/
 # Xcode (if a project file is ever generated locally)
 DerivedData/
 *.xcuserstate
+dist/
