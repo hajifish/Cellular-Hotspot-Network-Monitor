@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!--
+    Traffic Monitor LOGO
+    构图：SF Symbol arrow.up.arrow.down 同款 ⇅ 交错；绿=上行 / 蓝=下行
+    质感：macOS 半透明玻璃（箭头 85% 不透明度 + 顶面高光 + 边缘光）
+    配色与 docs/assets/banner.svg、应用内 UI 同源
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1424"/>
+      <stop offset="1" stop-color="#131d33"/>
+    </linearGradient>
+    <!-- 玻璃箭头：上浅下深纵向渐变（userSpaceOnUse 保证笔画与箭头共享同一渐变域） -->
+    <linearGradient id="up" x1="0" y1="276" x2="0" y2="700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a7f3d0"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="down" x1="0" y1="324" x2="0" y2="724" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <!-- 顶面玻璃高光：自上而下淡出 -->
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.09"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- 玻璃边缘光：上缘亮、下缘消失 -->
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- macOS 圆角方形底（1024 画布 / 824 主体） -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#sheen)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="#1f2a44" stroke-width="5"/>
+  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="url(#edge)" stroke-width="4"/>
+
+  <!-- 主体：上行 / 下行箭头，垂直错位，半透明玻璃质感 -->
+  <g fill="none" stroke-width="80" stroke-linecap="round" stroke-linejoin="round"
+     opacity="0.85" filter="url(#glow)">
+    <g stroke="url(#up)">
+      <path d="M 380 700 L 380 330"/>
+      <path d="M 260 450 L 380 300 L 500 450"/>
+    </g>
+    <g stroke="url(#down)">
+      <path d="M 644 324 L 644 694"/>
+      <path d="M 524 574 L 644 724 L 764 574"/>
+    </g>
+  </g>
+</svg>

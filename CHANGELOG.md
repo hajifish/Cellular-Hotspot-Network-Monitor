@@ -9,6 +9,9 @@
 
 ### 新增 (Added)
 
+- 应用 LOGO 与 App 图标：`docs/assets/logo.svg`（macOS 玻璃质感，基于菜单栏
+  `arrow.up.arrow.down` 构图，绿=上行 / 蓝=下行）；`scripts/make-icon.sh` 于
+  构建期生成 `AppIcon.icns`，`make-app.sh` 自动打入 `.app`（Dock 不再是空白图标）
 - 菜单栏流量监测（Wi-Fi 与 USB 共享 iPhone 蜂窝热点）：实时上/下行速率、
   按模块累计收发总量与各自独立的开始时间，支持按模块重置
 - 状态栏显示开关：实时速率 / 累计流量两个独立开关（多档排布，含纯图标模式），

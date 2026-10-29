@@ -1,5 +1,9 @@
 # Cellular Hotspot Network Monitor
 
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Traffic Monitor LOGO：上行 / 下行流量" width="110">
+</p>
+
 [![CI](https://github.com/hajifish/Cellular-Hotspot-Network-Monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/hajifish/Cellular-Hotspot-Network-Monitor/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)

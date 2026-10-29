@@ -4,17 +4,20 @@ cd "$(dirname "$0")/.."
 
 CONFIG=release
 swift build -c "$CONFIG"
+./scripts/make-icon.sh
 
 APP="Traffic Monitor.app"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp ".build/$CONFIG/TrafficMonitor" "$APP/Contents/MacOS/TrafficMonitor"
+cp ".build/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key><string>TrafficMonitor</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleIdentifier</key><string>local.shin.TrafficMonitor</string>
     <key>CFBundleName</key><string>Traffic Monitor</string>
     <key>CFBundleDisplayName</key><string>Traffic Monitor</string>
