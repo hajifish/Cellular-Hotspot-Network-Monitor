@@ -30,6 +30,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var iphoneItem: NSMenuItem!
     private var alertMenu: NSMenu!
     private var alertItem: NSMenuItem!
+    private var milestoneTracker = MilestoneTracker()
     private var changeObserverID: UUID?
 
     static func run() {
@@ -81,11 +82,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         changeObserverID = monitor.addObserver { [weak self] in
             self?.refresh()
             self?.checkAlert()
+            self?.checkMilestone()
         }
-        // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装）
+        // 里程碑与告警都依赖系统通知，首次启动请求授权（已授权则静默返回）
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装），里程碑对齐
         monitor.onReset = { [weak self] in
             guard let self else { return }
-            self.alert.reset(baselineBytes: self.currentMeteredTotal())
+            let total = self.currentMeteredTotal()
+            self.alert.reset(baselineBytes: total)
+            self.milestoneTracker.resync(totalBytes: total)
         }
         homeController.alertStateProvider = { [weak self] in
             guard let self else { return (threshold: nil, fired: false, progressBytes: 0) }
@@ -224,7 +230,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let bytes = (sender.representedObject as? NSNumber)?.uint64Value
         guard bytes != alert.threshold else { return } // 与当前设置相同，无需动作
         if bytes == nil {
-            applyAlertThreshold(nil, persist: false) // 关闭无需确认
+            applyAlertThreshold(nil, persist: true) // 关闭直接生效并持久化
             return
         }
         let label = Self.alertPresets.first { $0.bytes == bytes }?.label ?? ByteFormat.string(bytes ?? 0)
@@ -302,6 +308,22 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         guard alert.check(totalBytes: totalBytes) else { return }
         fireAlert(usedBytes: progress)
+    }
+
+    /// 每 1 GB 里程碑：自上次重置起累计每满 1 GB 提醒一条
+    private func checkMilestone() {
+        let totalBytes = currentMeteredTotal()
+        guard let reached = milestoneTracker.update(totalBytes: totalBytes) else { return }
+        let gb = reached / MenuBarController.gigabyte
+        logger.info("milestone reached: \(gb, privacy: .public) GB, total=\(ByteFormat.string(totalBytes), privacy: .public)")
+        let content = UNMutableNotificationContent()
+        content.title = "Traffic Monitor 流量里程碑"
+        content.body = "自上次重置已累计使用 \(ByteFormat.string(totalBytes))（\(gb) GB）。"
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            _ = error // 通知不可用时静默：里程碑仅为提示性质
+        }
     }
 
     private func fireAlert(usedBytes: UInt64) {

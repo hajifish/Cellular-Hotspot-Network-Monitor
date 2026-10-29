@@ -48,6 +48,7 @@ enum SelfTest {
         TestRun.suite("RateHistory") { RateHistoryTests.all() }
         TestRun.suite("HomePage") { HomePageTests.all() }
         TestRun.suite("TrafficAlert") { TrafficAlertTests.all() }
+        TestRun.suite("MilestoneTracker") { MilestoneTrackerTests.all() }
         TestRun.suite("StatusBarFormatter") { StatusBarFormatterTests.all() }
         TestRun.suite("MenuTextBuilder") { MenuTextBuilderTests.all() }
         TestRun.finish()
