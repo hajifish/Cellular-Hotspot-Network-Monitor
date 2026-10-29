@@ -178,8 +178,9 @@ final class HomePageController {
     private func refreshToggles() {
         styleSphere(ratesToggle, on: StatusBarPrefs.showRates)
         styleSphere(totalsToggle, on: StatusBarPrefs.showTotals)
-        ratesLabel.isHidden = !StatusBarPrefs.showRates
-        totalsLabel.isHidden = !StatusBarPrefs.showTotals
+        // 文字常驻，仅用颜色深浅区分选中态
+        ratesLabel.textColor = StatusBarPrefs.showRates ? .labelColor : .secondaryLabelColor
+        totalsLabel.textColor = StatusBarPrefs.showTotals ? .labelColor : .secondaryLabelColor
     }
 
     // MARK: - 按模块重置

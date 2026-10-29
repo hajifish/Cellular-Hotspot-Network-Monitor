@@ -34,14 +34,14 @@ enum StatusBarPrefs {
 enum StatusBarFormatter {
     /// 状态栏富文本；两个开关都关时返回 nil（只显示图标）。
     ///
-    /// 布局：实时速率与累计流量各自是一组「↑上 / ↓下」两行竖排；
+    /// 布局：累计流量在前、实时速率在后，各自是一组「↑上 / ↓下」两行竖排；
     /// 同开时两组并排（列间两个空格）。8pt 紧行距，保证不超出菜单栏高度。
     ///
     /// textColor 需由调用方按菜单栏明暗传入显式色（位图渲染中语义色解析不可靠）。
     ///
     /// ```text
-    /// ↑5.1KB/s  ↑3.9MB
-    /// ↓9.2KB/s  ↓1.2MB
+    /// ↑3.9MB   ↑5.1KB/s
+    /// ↓1.2MB   ↓9.2KB/s
     /// ```
     static func attributed(showRates: Bool, showTotals: Bool, textColor: NSColor,
                            totalRate: CategoryDelta, totalRX: UInt64, totalTX: UInt64) -> NSAttributedString? {
@@ -52,20 +52,20 @@ enum StatusBarFormatter {
         }
 
         var columns: [[Segment]] = []
-        if showRates {
-            columns.append([
-                Segment(arrow: "↑", arrowColor: textColor,
-                        value: ByteFormat.rate(totalRate.tx, compact: true)),
-                Segment(arrow: "↓", arrowColor: textColor,
-                        value: ByteFormat.rate(totalRate.rx, compact: true)),
-            ])
-        }
         if showTotals {
             columns.append([
                 Segment(arrow: "↑", arrowColor: textColor,
                         value: ByteFormat.string(totalTX, compact: true)),
                 Segment(arrow: "↓", arrowColor: textColor,
                         value: ByteFormat.string(totalRX, compact: true)),
+            ])
+        }
+        if showRates {
+            columns.append([
+                Segment(arrow: "↑", arrowColor: textColor,
+                        value: ByteFormat.rate(totalRate.tx, compact: true)),
+                Segment(arrow: "↓", arrowColor: textColor,
+                        value: ByteFormat.rate(totalRate.rx, compact: true)),
             ])
         }
         guard !columns.isEmpty else { return nil }

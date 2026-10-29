@@ -1,22 +1,21 @@
-# Changelog
+# 更新日志 (Changelog)
 
-All notable changes to this project will be documented in this file.
+本文件记录本项目的所有重要变更。
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
+版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
 ## [Unreleased]
 
-### Added
+### 新增 (Added)
 
-- Menu bar traffic monitoring for Wi-Fi and USB-tethered iPhone (cellular hotspot):
-  live up/down rates and per-interface totals since launch, resettable via ⌘R.
-- Status bar display modes: two independent toggles (live rates / totals),
-  including a compact two-row layout when both are shown, or icon-only.
-- Traffic threshold alerts: presets (1/2/5/10/20 GB) or custom values ("5 GB",
-  "500 MB"); soft chime plus system notification (in-app dialog fallback).
-  Fires once per threshold and re-arms on reset or change.
-- Home window (⌘0): runtime, interface cards, and a rolling 120-second
-  upload/download rate graph that adapts to light and dark mode.
-- Built-in self-test suite (run with `TRAFFICMONITOR_SELFTEST=1`; exit code
-  reports the result).
+- 菜单栏流量监测（Wi-Fi 与 USB 共享 iPhone 蜂窝热点）：实时上/下行速率、
+  按模块累计收发总量与各自独立的开始时间，支持按模块重置
+- 状态栏显示开关：实时速率 / 累计流量两个独立开关（多档排布，含纯图标模式），
+  选择会被记住
+- 流量阈值告警：预设 1/2/5/10/20 GB 或自定义值（如 `5 GB`、`500 MB`）；
+  柔和钟声 + 系统通知（未授权时回退应用内弹窗）。每个阈值只提醒一次，
+  重置或换档后重新武装
+- 主页窗口（⌘0）：接口卡片（名称、实时速率、累计、重置按钮）与近 120 秒
+  上传/下载滚动速率折线图，自适应浅色/深色模式
+- 内置自测套件（`TRAFFICMONITOR_SELFTEST=1` 运行，退出码报告结果）

@@ -1,19 +1,23 @@
 ---
-name: Feature request
-about: Suggest an idea for Traffic Monitor
+name: 功能建议 (Feature request)
+about: 给 Traffic Monitor 提个想法 / Suggest an idea
 title: ''
 labels: enhancement
 assignees: ''
 ---
 
-**Problem to solve**
-What are you trying to do, and what's missing?
+<!-- 欢迎使用中文或英文描述。Please write in Chinese or English. -->
 
-**Proposed solution**
-What you'd like to happen.
+**想解决的问题 / Problem to solve**
 
-**Alternatives considered**
-Any workarounds or other approaches you've thought of.
+<!-- 你想做什么，目前缺什么？What are you trying to do, and what's missing? -->
 
-**Additional context**
-Screenshots or sketches welcome.
+**建议的方案 / Proposed solution**
+
+<!-- 你期望发生什么。What you'd like to happen. -->
+
+**考虑过的替代方案 / Alternatives considered**
+
+**补充说明 / Additional context**
+
+<!-- 截图或草图都欢迎。Screenshots or sketches welcome. -->

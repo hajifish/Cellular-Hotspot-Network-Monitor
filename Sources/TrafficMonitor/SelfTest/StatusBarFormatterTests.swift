@@ -25,7 +25,7 @@ enum StatusBarFormatterTests {
         let text = StatusBarFormatter.attributed(showRates: true, showTotals: true, textColor: .white,
                                                  totalRate: rate,
                                                  totalRX: 8_100_000_000, totalTX: 2_300_000_000)?.string
-        TestRun.expectEqual(text, "↑300B/s  ↑2.3GB\n↓1.2KB/s  ↓8.1GB", "two groups side by side")
+        TestRun.expectEqual(text, "↑2.3GB  ↑300B/s\n↓8.1GB  ↓1.2KB/s", "totals first, rates second")
     }
 
     static func bothOffIsNil() {

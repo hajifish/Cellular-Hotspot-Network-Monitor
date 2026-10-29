@@ -18,7 +18,10 @@
 | 决策点 | 结论 |
 |---|---|
 | 许可证 | MIT，版权行 `Copyright (c) 2026 Shin L (hajifish)` |
-| 文档语言 | 英文为主（README.md / CONTRIBUTING / 模板），另附 `README.zh-CN.md` |
+| 文档语言 | ~~英文为主（README.md / CONTRIBUTING / 模板），另附 `README.zh-CN.md`~~
+  **2026-10-29 修订**：应用户要求对调主次并确立统一原则——**中文为主，英文为扩展**
+  （`README.md`/`CONTRIBUTING.md`/模板/CHANGELOG 均中文，英文版一律 `*.en.md`；
+  LICENSE 保留英文法定文本） |
 | 内部设计文档 | `docs/superpowers/` 保留公开，展示设计演进 |
 | CI | GitHub Actions：`swift build`（debug+release）+ 内置自测 |
 | 历史清理 | `git filter-repo` 重写：抹除 `.build/`、`Traffic Monitor.app/` |
@@ -41,14 +44,14 @@
 
 | 文件 | 说明 |
 |---|---|
-| `README.md` | 英文重写：定位、功能、要求、构建、自测、原理、贡献指引 |
-| `README.zh-CN.md` | 中文版，与英文版结构对齐，整合原 README 内容 |
+| `README.md` | 中文主文档：定位、功能、要求、构建、自测、原理、贡献指引 |
+| `README.en.md` | 英文扩展版，与中文版结构对齐 |
 | `LICENSE` | MIT |
 | `CHANGELOG.md` | Keep a Changelog 格式，`[Unreleased]` 起步 |
-| `CONTRIBUTING.md` | 开发环境、自测、Gitflow 分支模型、Conventional Commits、PR 清单、维护者手册 |
-| `.github/PULL_REQUEST_TEMPLATE.md` | 类型核对（Gitflow）+ 自检清单 |
-| `.github/ISSUE_TEMPLATE/bug_report.md` | 环境信息、复现步骤、日志取法 |
-| `.github/ISSUE_TEMPLATE/feature_request.md` | 功能建议 |
+| `CONTRIBUTING.md` | 中文主文档：开发环境、自测、Gitflow 分支模型、Conventional Commits、PR 清单、维护者手册（英文扩展版 `CONTRIBUTING.en.md`） |
+| `.github/PULL_REQUEST_TEMPLATE.md` | 中文为主（英文括注）：类型核对（Gitflow）+ 自检清单 |
+| `.github/ISSUE_TEMPLATE/bug_report.md` | 中文为主（英文括注）：环境信息、复现步骤、日志取法 |
+| `.github/ISSUE_TEMPLATE/feature_request.md` | 中文为主（英文括注）：功能建议 |
 | `.github/ISSUE_TEMPLATE/config.yml` | 允许空 issue |
 | `.github/workflows/ci.yml` | push(main/develop) 与 PR 触发；macos-14；build + 自测 |
 | `.gitignore` | `.build/`、`*.app`、`.DS_Store` 等 |
