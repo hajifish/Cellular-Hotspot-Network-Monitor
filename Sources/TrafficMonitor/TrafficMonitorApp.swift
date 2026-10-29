@@ -82,11 +82,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self?.refresh()
             self?.checkAlert()
         }
-        // 任一模块重置后重新武装告警（总流量变小，需要重新越线才会再提醒）
-        monitor.onReset = { [weak self] in self?.alert.reset() }
+        // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装）
+        monitor.onReset = { [weak self] in
+            guard let self else { return }
+            self.alert.reset(baselineBytes: self.currentMeteredTotal())
+        }
         homeController.alertStateProvider = { [weak self] in
-            guard let self else { return (threshold: nil, fired: false) }
-            return (threshold: self.alert.threshold, fired: self.alert.fired)
+            guard let self else { return (threshold: nil, fired: false, progressBytes: 0) }
+            let total = self.currentMeteredTotal()
+            return (threshold: self.alert.threshold,
+                    fired: self.alert.fired,
+                    progressBytes: self.alert.progress(totalBytes: total))
         }
         monitor.start()
         refresh()
@@ -186,15 +192,21 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // 诊断/验证用：启动即设一个极低阈值（如 TRAFFICMONITOR_ALERT_MB=1）
         if let debugMB = ProcessInfo.processInfo.environment["TRAFFICMONITOR_ALERT_MB"],
            let value = Double(debugMB), value > 0 {
-            alert.setThreshold(UInt64(value * Double(Self.megabyte)))
+            alert.setThreshold(UInt64(value * Double(Self.megabyte)), baselineBytes: 0)
             return
         }
         let stored = UserDefaults.standard.object(forKey: Self.alertDefaultsKey) as? Int64
-        alert.setThreshold(stored.map { UInt64(max(0, $0)) })
+        alert.setThreshold(stored.map { UInt64(max(0, $0)) }, baselineBytes: 0)
+    }
+
+    private func currentMeteredTotal() -> UInt64 {
+        let store = monitor.store
+        return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
-        alert.setThreshold(bytes)
+        // 告警进度从设置时刻的流量重新起算
+        alert.setThreshold(bytes, baselineBytes: currentMeteredTotal())
         if persist {
             if let bytes {
                 UserDefaults.standard.set(Int64(bytes), forKey: Self.alertDefaultsKey)
@@ -279,15 +291,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    /// 每秒检查：越过阈值则触发一次
+    /// 每秒检查：告警进度（当前总量 − 基线）越过阈值则触发一次
     private func checkAlert() {
-        let totalBytes = monitor.store.wifi.rx + monitor.store.wifi.tx
-            + monitor.store.iphone.rx + monitor.store.iphone.tx
+        let totalBytes = currentMeteredTotal()
+        let progress = alert.progress(totalBytes: totalBytes)
         if alert.threshold != nil {
-            logger.debug("checkAlert total=\(totalBytes, privacy: .public) threshold=\(self.alert.threshold ?? 0, privacy: .public) fired=\(self.alert.fired, privacy: .public)")
+            logger.debug("checkAlert progress=\(progress, privacy: .public) threshold=\(self.alert.threshold ?? 0, privacy: .public) fired=\(self.alert.fired, privacy: .public)")
         }
         guard alert.check(totalBytes: totalBytes) else { return }
-        fireAlert(usedBytes: totalBytes)
+        fireAlert(usedBytes: progress)
     }
 
     private func fireAlert(usedBytes: UInt64) {
@@ -297,7 +309,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 流量告警"
-        content.body = "自开始计时已使用 \(used)，达到设定的 \(limit)。"
+        content.body = "自设置告警起已使用 \(used)，达到设定的 \(limit)。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { [weak self] error in
@@ -355,11 +367,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.iphone.displayName,
             rx: store.iphone.rx, tx: store.iphone.tx, rate: monitor.iphoneRate)
-        let totalBytesForAlert = store.wifi.rx + store.wifi.tx
-            + store.iphone.rx + store.iphone.tx
+        let totalBytesForAlert = currentMeteredTotal()
+        let alertProgress = alert.progress(totalBytes: totalBytesForAlert)
         let strip = HomePageController.alertStrip(threshold: alert.threshold,
                                                   fired: alert.fired,
-                                                  totalBytes: totalBytesForAlert)
+                                                  progressBytes: alertProgress)
         let detail: String
         switch strip.state {
         case .unset: detail = ""

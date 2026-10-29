@@ -15,15 +15,15 @@ enum HomePageTests {
     }
 
     static func alertStripFormatting() {
-        let unset = HomePageController.alertStrip(threshold: nil, fired: false, totalBytes: 100)
+        let unset = HomePageController.alertStrip(threshold: nil, fired: false, progressBytes: 100)
         TestRun.expectEqual(unset.text, "未设置", "unset text")
         TestRun.expect(unset.state == .unset, "unset state")
 
-        let armed = HomePageController.alertStrip(threshold: 1_000, fired: false, totalBytes: 250)
+        let armed = HomePageController.alertStrip(threshold: 1_000, fired: false, progressBytes: 250)
         TestRun.expectEqual(armed.text, "剩 750B · 已用 25%", "armed shows remaining and percent")
         TestRun.expect(armed.state == .armed, "armed state")
 
-        let fired = HomePageController.alertStrip(threshold: 1_000, fired: true, totalBytes: 5_000)
+        let fired = HomePageController.alertStrip(threshold: 1_000, fired: true, progressBytes: 5_000)
         TestRun.expectEqual(fired.text, "已触发 · 已用 100%", "fired text")
         TestRun.expect(fired.state == .fired, "fired state")
     }

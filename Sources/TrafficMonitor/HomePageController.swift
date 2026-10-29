@@ -10,6 +10,9 @@ final class HomePageController {
         case fired  // 已触发：红色
     }
 
+    /// 告警阈值与触发进度由 MenuBarController 持有，经此闭包读取
+    var alertStateProvider: (() -> (threshold: UInt64?, fired: Bool, progressBytes: UInt64))?
+
     private let monitor: TrafficMonitor
     private let window: NSWindow
     private let graphView = RateGraphView()
@@ -60,13 +63,13 @@ final class HomePageController {
     /// 汇总条告警文案与状态（纯函数，可测）：
     /// 未设置 → 白色；已设置 → 橙色倒计时（剩余量 + 已用百分比）；已触发 → 红色
     nonisolated static func alertStrip(threshold: UInt64?, fired: Bool,
-                                       totalBytes: UInt64) -> (text: String, state: AlertStripState) {
+                                       progressBytes: UInt64) -> (text: String, state: AlertStripState) {
         guard let threshold, threshold > 0 else { return ("未设置", .unset) }
         if fired {
             return ("已触发 · 已用 100%", .fired)
         }
-        let percent = min(100, Int(Double(totalBytes) / Double(threshold) * 100))
-        let remaining = threshold > totalBytes ? threshold - totalBytes : 0
+        let percent = min(100, Int(Double(progressBytes) / Double(threshold) * 100))
+        let remaining = threshold > progressBytes ? threshold - progressBytes : 0
         return ("剩 \(ByteFormat.string(remaining, compact: true)) · 已用 \(percent)%", .armed)
     }
 
@@ -358,7 +361,7 @@ final class HomePageController {
 
         let alertState = alertStateProvider?()
         let strip = Self.alertStrip(threshold: alertState?.threshold, fired: alertState?.fired ?? false,
-                                    totalBytes: totalRX + totalTX)
+                                    progressBytes: alertState?.progressBytes ?? 0)
         alertValueLabel.stringValue = strip.text
         switch strip.state {
         case .unset: alertValueLabel.textColor = .white
@@ -370,9 +373,6 @@ final class HomePageController {
         graphView.downloadLabel = "↓\(ByteFormat.rate(total.rx))"
         graphView.uploadLabel = "↑\(ByteFormat.rate(total.tx))"
     }
-
-    /// 告警阈值与触发状态由 MenuBarController 持有，经此闭包读取
-    var alertStateProvider: (() -> (threshold: UInt64?, fired: Bool))?
 
     /// 模块运行中 = 接口在线且已有计量流量（纯函数，可测）
     nonisolated static func isRunning(present: Bool, rx: UInt64, tx: UInt64) -> Bool {
