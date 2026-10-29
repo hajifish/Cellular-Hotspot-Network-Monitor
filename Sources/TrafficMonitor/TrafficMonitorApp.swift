@@ -96,13 +96,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // MARK: - 状态栏内容
 
     /// 状态栏：内容渲染为整张图片交给按钮垂直居中（多行文字不会被贴顶裁切）；
-    /// 仅图标模式显示软件 `↑↓` 符号；告警铃铛始终追加在内容之后
+    /// 仅图标模式显示软件 `↑↓` 符号；告警铃铛始终追加在内容之后。
+    /// 菜单栏恒为深色底，文字与箭头统一用白色单色风。
     private func updateStatusBarContent() {
         guard let button = statusItem.button else { return }
         let store = monitor.store
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let textColor = isDark ? NSColor(srgbRed: 0.94, green: 0.94, blue: 0.92, alpha: 1)
-                               : NSColor(white: 0.1, alpha: 1)
+        let textColor = NSColor.white
 
         var content = NSMutableAttributedString()
         if let attributed = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,

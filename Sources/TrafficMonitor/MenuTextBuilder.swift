@@ -62,12 +62,12 @@ enum MenuTextBuilder {
     static func bellAttachment(fired: Bool) -> NSAttributedString {
         let color = fired ? NSColor.systemRed : NSColor.systemOrange
         let symbolName = fired ? "bell.badge.fill" : "bell.fill"
-        let image = tintedSymbol(symbolName, color: color, size: 11)
-            ?? tintedSymbol("bell.fill", color: color, size: 11)
-            ?? NSImage(size: NSSize(width: 11, height: 11))
+        let image = tintedSymbol(symbolName, color: color, size: 14)
+            ?? tintedSymbol("bell.fill", color: color, size: 14)
+            ?? NSImage(size: NSSize(width: 14, height: 14))
         let attachment = NSTextAttachment()
         attachment.image = image
-        attachment.bounds = NSRect(x: 0, y: -3, width: 11, height: 11)
+        attachment.bounds = NSRect(x: 0, y: -5, width: 14, height: 14)
         return NSAttributedString(attachment: attachment)
     }
 

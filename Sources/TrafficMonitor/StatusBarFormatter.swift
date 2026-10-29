@@ -54,17 +54,17 @@ enum StatusBarFormatter {
         var columns: [[Segment]] = []
         if showRates {
             columns.append([
-                Segment(arrow: "↑", arrowColor: RateGraphView.uploadColor,
+                Segment(arrow: "↑", arrowColor: textColor,
                         value: ByteFormat.rate(totalRate.tx, compact: true)),
-                Segment(arrow: "↓", arrowColor: RateGraphView.downloadColor,
+                Segment(arrow: "↓", arrowColor: textColor,
                         value: ByteFormat.rate(totalRate.rx, compact: true)),
             ])
         }
         if showTotals {
             columns.append([
-                Segment(arrow: "↑", arrowColor: RateGraphView.uploadColor,
+                Segment(arrow: "↑", arrowColor: textColor,
                         value: ByteFormat.string(totalTX, compact: true)),
-                Segment(arrow: "↓", arrowColor: RateGraphView.downloadColor,
+                Segment(arrow: "↓", arrowColor: textColor,
                         value: ByteFormat.string(totalRX, compact: true)),
             ])
         }
