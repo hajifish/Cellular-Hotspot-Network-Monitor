@@ -229,24 +229,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func selectAlertPreset(_ sender: NSMenuItem) {
         let bytes = (sender.representedObject as? NSNumber)?.uint64Value
         guard bytes != alert.threshold else { return } // 与当前设置相同，无需动作
-        if bytes == nil {
-            applyAlertThreshold(nil, persist: true) // 关闭直接生效并持久化
-            return
-        }
-        let label = Self.alertPresets.first { $0.bytes == bytes }?.label ?? ByteFormat.string(bytes ?? 0)
-        guard confirmAlertSetting(label: label) else { return }
         applyAlertThreshold(bytes, persist: true)
-    }
-
-    /// 设置新阈值前的确认框：说明提醒进度会重置
-    private func confirmAlertSetting(label: String) -> Bool {
-        let dialog = NSAlert()
-        dialog.messageText = "设置流量告警：\(label)"
-        dialog.informativeText = "总流量（上行+下行）达到 \(label) 时会提醒一次。\n设置后提醒进度将重新计算，之前已触发的提醒状态会被清除。"
-        dialog.addButton(withTitle: "设置")
-        dialog.addButton(withTitle: "取消")
-        NSApp.activate(ignoringOtherApps: true)
-        return dialog.runModal() == .alertFirstButtonReturn
     }
 
     @objc private func showCustomAlertThreshold() {
