@@ -20,6 +20,17 @@ enum TrafficMonitorTests {
         firstSampleIsBaselineNotCounted()
         emptySampleSkipsTickKeepingBaseline()
         sleepGapKeepsTotalsButRebasesRate()
+        interfacePresenceFollowsLatestSample()
+    }
+
+    static func interfacePresenceFollowsLatestSample() {
+        // 接口消失（如拔掉 iPhone）后，在线状态必须同步消失，不得残留
+        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0), sample("en7", .iphone, rx: 0, tx: 0)])
+        TestRun.expect(monitor.interfaceByCategory[.iphone] != nil, "iphone present")
+        monitor.update(from: [sample("en0", .wifi, rx: 10, tx: 10)]) // en7 消失
+        TestRun.expect(monitor.interfaceByCategory[.iphone] == nil, "iphone presence cleared")
+        TestRun.expect(monitor.interfaceByCategory[.wifi] != nil, "wifi still present")
     }
 
     static func totalRateSumsCategories() {

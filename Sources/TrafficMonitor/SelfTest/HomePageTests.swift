@@ -4,6 +4,14 @@ enum HomePageTests {
         durationTextFormatting()
         ratePartsSplit()
         alertStripFormatting()
+        moduleRunningState()
+    }
+
+    static func moduleRunningState() {
+        // 运行中 = 接口在线且已有计量流量
+        TestRun.expect(HomePageController.isRunning(present: true, rx: 1, tx: 0), "present with traffic runs")
+        TestRun.expect(!HomePageController.isRunning(present: true, rx: 0, tx: 0), "present but zero traffic idle")
+        TestRun.expect(!HomePageController.isRunning(present: false, rx: 1, tx: 1), "absent interface not running")
     }
 
     static func alertStripFormatting() {

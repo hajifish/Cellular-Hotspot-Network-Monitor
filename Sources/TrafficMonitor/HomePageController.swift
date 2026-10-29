@@ -107,14 +107,17 @@ final class HomePageController {
             content.addSubview(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 18, y: 94, width: 180, height: 18)
-            let reset = NSButton(title: "重置计量", target: self, action: #selector(resetCategory(_:)))
-            reset.isBordered = false
-            reset.setFrameOrigin(NSPoint(x: 320 - 74, y: 94))
-            reset.font = .systemFont(ofSize: 10, weight: .medium)
-            reset.contentTintColor = .secondaryLabelColor
-            reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
-            card.contentView?.addSubview(reset)
+            title.frame = NSRect(x: 18, y: 94, width: 200, height: 18)
+            if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
+                                       accessibilityDescription: "重置计量") {
+                let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
+                reset.isBordered = false
+                reset.contentTintColor = .secondaryLabelColor
+                reset.setFrameOrigin(NSPoint(x: 320 - 34, y: 92))
+                reset.toolTip = "重置计量"
+                reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
+                card.contentView?.addSubview(reset)
+            }
 
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
             rate.frame = NSRect(x: 18, y: 52, width: 284, height: 34)
@@ -300,9 +303,36 @@ final class HomePageController {
         for (category, labels) in cards {
             let usage = store.usage(for: category)
             let name = category.displayName
-            let rate = category == .wifi ? monitor.wifiRate : monitor.iphoneRate
             let interface = monitor.interfaceByCategory[category].map { "  ·  \($0)" } ?? ""
-            labels.title.stringValue = "\(name)\(interface)"
+            let rate = category == .wifi ? monitor.wifiRate : monitor.iphoneRate
+            let present = monitor.interfaceByCategory[category] != nil
+            let running = Self.isRunning(present: present, rx: usage.rx, tx: usage.tx)
+
+            if running {
+                // 运行中：绿点 + 标题
+                let titleText = NSMutableAttributedString()
+                titleText.append(NSAttributedString(string: "● ", attributes: [
+                    .font: NSFont.systemFont(ofSize: 9, weight: .bold),
+                    .foregroundColor: NSColor.systemGreen,
+                ]))
+                titleText.append(NSAttributedString(string: "\(name)\(interface)", attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                    .foregroundColor: NSColor.labelColor,
+                ]))
+                labels.title.attributedStringValue = titleText
+                let seconds = max(0, Int(Date().timeIntervalSince(usage.startTime)))
+                labels.meta.stringValue = "开始 \(usage.startTime.formatted(date: .omitted, time: .shortened)) · 已运行 \(Self.durationText(seconds))"
+                labels.meta.textColor = .tertiaryLabelColor
+            } else {
+                // 未启用：白灰标题 + 提示，不计时
+                labels.title.attributedStringValue = NSAttributedString(string: "\(name)\(interface)", attributes: [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                ])
+                labels.meta.stringValue = "当前还没有启用"
+                labels.meta.textColor = .tertiaryLabelColor
+            }
+
             let down = ByteFormat.rateParts(rate.rx)
             let up = ByteFormat.rateParts(rate.tx)
             let rateText = NSMutableAttributedString(attributedString: Self.attributedRate(
@@ -314,8 +344,6 @@ final class HomePageController {
                 value: up.value, unit: up.unit, numberSize: 19, unitSize: 11))
             labels.rate.attributedStringValue = rateText
             labels.total.stringValue = "累计  ↑ \(ByteFormat.string(usage.tx))    ↓ \(ByteFormat.string(usage.rx))"
-            let seconds = max(0, Int(Date().timeIntervalSince(usage.startTime)))
-            labels.meta.stringValue = "开始 \(usage.startTime.formatted(date: .omitted, time: .shortened)) · 已运行 \(Self.durationText(seconds))"
         }
 
         // 会话/告警汇总条
@@ -345,6 +373,11 @@ final class HomePageController {
 
     /// 告警阈值与触发状态由 MenuBarController 持有，经此闭包读取
     var alertStateProvider: (() -> (threshold: UInt64?, fired: Bool))?
+
+    /// 模块运行中 = 接口在线且已有计量流量（纯函数，可测）
+    nonisolated static func isRunning(present: Bool, rx: UInt64, tx: UInt64) -> Bool {
+        present && (rx > 0 || tx > 0)
+    }
 }
 
 private extension NSMutableAttributedString {

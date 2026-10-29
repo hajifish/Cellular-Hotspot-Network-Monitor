@@ -75,12 +75,15 @@ final class TrafficMonitor {
         guard !samples.isEmpty else { return }
 
         var categories: [String: InterfaceCategory] = [:]
+        var liveInterfaces: [InterfaceCategory: String] = [:]
         for s in samples {
             if let c = s.category {
                 categories[s.name] = c
-                interfaceByCategory[c] = s.name
+                liveInterfaces[c] = s.name
             }
         }
+        // 逐拍重建：接口消失（拔线/断开）后在线状态同步清除
+        interfaceByCategory = liveInterfaces
         let current = Self.counterMap(from: samples)
         let deltas = TrafficMath.deltas(previous: previousCounters, current: current, categories: categories)
         store.record(deltas)
