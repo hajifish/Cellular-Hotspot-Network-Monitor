@@ -54,7 +54,7 @@ flowchart LR
 
 - **`UpdateModels.swift`** — `ReleaseInfo` / `ReleaseAsset`（Codable，对应 GitHub API 字段）；`AppVersion`（读 `Bundle.main` 的 `CFBundleShortVersionString`，缺失视为开发构建 `0.0.0`）；语义化版本比较（去 `v` 前缀 → 按 `-` 截断后缀 → 逐段数字比较，段数不足补零）。
 - **`UpdateChecker.swift`** — 请求 `releases/latest`（`Accept: application/vnd.github+json`，10s 超时，自动走系统代理）；从 `assets` 中选 `TrafficMonitor-*.zip`（优先文件名含目标版本者）；无匹配资产返回 `nil`。
-- **`UpdateInstaller.swift`** — 下载 ZIP 到临时目录（downloadTask，进度回调含字节数/总大小）→ `unzip` 解压 → **读新 bundle Info.plist 校验版本号 == 目标 tag** → 生成替换脚本写入临时目录 → posix_spawn 分离执行。
+- **`UpdateInstaller.swift`** — 下载 ZIP 到临时目录（downloadTask，进度回调含字节数/总大小）→ `unzip` 解压 → **读新 bundle Info.plist 校验版本号 == 目标 tag** → 生成替换脚本写入临时目录 → `Process` 分离执行（实施修正：本机 SDK 将 `posix_spawnattr_t` 导入为不透明指针、签名不匹配；父进程 `exit(0)` 属正常退出不会终止子进程，且脚本自带 `kill -0` 等待环，时序无关紧要，故改用与项目既有用法一致的 `Process`）。
 - **`UpdateService.swift`** — `@MainActor` 状态机，UI 唯一对接点；持有定时器；checker/installer 经协议注入，自测可换 fake。
 
 ### 替换脚本（换包原子性核心）
@@ -71,7 +71,7 @@ open "$1" && rm -rf "$1".old-*                         # 启动成功才清理�
 ```
 
 - 换的是**目录名**而非运行中的二进制；新包就位后才 `open`（旧进程已确认退出，避免 `open` 复用旧进程）。
-- 脚本为分离进程（posix_spawn，`POSIX_SPAWN_SETSID`），主程序 `exit(0)` 不影响其执行。
+- 脚本为分离进程（`Process` 启动，见上文实施修正），主程序 `exit(0)` 不影响其执行。
 - 中途崩溃的残留：`.old-*` 目录由下一次成功更新顺手清理，自愈。
 
 ## 状态机
@@ -174,5 +174,5 @@ sequenceDiagram
 
 ## 实施影响面
 
-- 新增 4 个源文件（约 400 行）+ `SelfTest/UpdateServiceTests.swift` 等。
+- 新增 5 个源文件（UpdateModels / UpdateChecker / UpdateInstaller / UpdateService / UpdatePresentation，约 700 行）+ `SelfTest/Update*Tests.swift` 五个测试文件。
 - 修改：`TrafficMonitorApp.swift`（菜单接入与启动定时）、`HomePageController.swift`（更新卡片）、`Package.swift` 无需变更（零新依赖）。

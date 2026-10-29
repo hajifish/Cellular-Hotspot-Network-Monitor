@@ -56,7 +56,14 @@
 - **Home window (⌘0)** — interface cards (name, live rates, totals, reset)
   and a rolling 120-second upload/download rate graph that adapts to light
   and dark mode
-- **No network access of its own** — it only reads kernel interface counters
+- **Auto-update** — detects new releases via GitHub Releases (automatic
+  check after launch and every 6 hours; manual check and an auto-check
+  toggle in the menu). A new version triggers a system notification plus
+  menu/home reminders; the app downloads it with progress, verifies it,
+  and swaps itself on your confirmation — rolling back automatically if
+  the swap fails
+- **No network access of its own** — it only reads kernel interface
+  counters; GitHub is contacted only to check for and download updates
 
 ## Requirements
 
