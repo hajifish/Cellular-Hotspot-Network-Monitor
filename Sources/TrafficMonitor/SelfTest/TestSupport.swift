@@ -52,6 +52,7 @@ enum SelfTest {
         TestRun.suite("StatusBarFormatter") { StatusBarFormatterTests.all() }
         TestRun.suite("MenuTextBuilder") { MenuTextBuilderTests.all() }
         TestRun.suite("UpdateModels") { UpdateModelsTests.all() }
+        TestRun.suite("UpdateChecker") { UpdateCheckerTests.all() }
         TestRun.finish()
     }
 }
