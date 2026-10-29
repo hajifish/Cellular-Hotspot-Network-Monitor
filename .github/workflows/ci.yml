@@ -22,3 +22,5 @@ jobs:
 
       - name: Self-test
         run: TRAFFICMONITOR_SELFTEST=1 .build/debug/TrafficMonitor
+
+# (re-registration probe: workflow file rewritten via git)
