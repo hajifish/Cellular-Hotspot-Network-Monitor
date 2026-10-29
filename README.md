@@ -1,51 +1,98 @@
-# Traffic Monitor
+# Cellular Hotspot Network Monitor
 
-macOS 菜单栏流量监测：从启动时刻起累计 Wi-Fi 与 USB 共享 iPhone 的流量，实时显示速率。
+[![CI](https://github.com/hajifish/Cellular-Hotspot-Network-Monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/hajifish/Cellular-Hotspot-Network-Monitor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)
 
-## 运行
+**Traffic Monitor** — a native macOS menu bar app that tracks the data your Mac
+pushes over Wi-Fi and over a USB-tethered iPhone (cellular hotspot): live
+up/down rates in the menu bar, cumulative totals since launch, and a traffic
+alert when you cross a limit you set.
 
-    ./scripts/make-app.sh
-    open "Traffic Monitor.app"
+*English | [简体中文](README.zh-CN.md)*
 
-菜单栏出现 `↑.. ↓..` 实时速率；点开可看 Wi-Fi / iPhone Share 分类累计、开始时间，支持重置（⌘R）、**打开主页（⌘0）**、**状态栏显示**、**流量告警**与退出（⌘Q）。
+## Why
 
-## 状态栏显示
+macOS tells you per-app network usage, but when you share your iPhone's
+cellular connection over USB it gives no simple answer to "how much of my
+mobile plan have I used since I plugged in?". Traffic Monitor counts from the
+moment it starts, per interface, and puts the answer one click away.
 
-主页顶部「状态栏显示」提供两个独立开关：**实时速率**（默认开）与**累计流量**（默认关），点击即切换并记住：
+## Features
 
-- 只开实时速率 → `↑0.3KB/s ↓1.2KB/s`
-- 只开累计流量 → `↑2.3GB ↓8.1GB`
-- 两者都开 → **上下两行**（上行速率、下行累计，9pt 紧凑排布节约横向空间）：
-  ```
-  ↑0.3KB/s ↓1.2KB/s
-  ↑2.3GB ↓8.1GB
-  ```
-- 都关闭 → 状态栏只显示软件图标
+- **Menu bar rates** — live `↑ ↓` up/down rates, refreshed every second
+- **Four display modes** — two independent toggles (live rates / totals),
+  including a compact two-row layout when both are shown, or icon-only;
+  your choice is remembered
+- **Per-interface totals** — Wi-Fi and iPhone USB share, each with
+  receive/transmit totals and the start time; ⌘R resets the counters
+- **Traffic alerts** — thresholds off / 1 / 2 / 5 / 10 / 20 GB or custom
+  values (`5 GB`, `500 MB`). On crossing: a soft chime plus a system
+  notification (in-app dialog if notifications are not authorized). Fires
+  once per threshold and re-arms on reset or change
+- **Home window (⌘0)** — runtime, two interface cards, and a rolling
+  120-second upload/download rate graph that adapts to light and dark mode
+- **No network access of its own** — it only reads kernel interface counters
 
-已设流量告警时，状态栏内容后**追加橙色铃铛**（触发后变红）；菜单中「流量告警」配置项同步变为橙/红并带 `●` 前缀。
+## Requirements
 
-## 流量告警
+- macOS 14 (Sonoma) or later
+- Swift 5.9 toolchain — Apple Command Line Tools are sufficient, full Xcode
+  is **not** required
 
-菜单「流量告警」选择阈值（关闭 / 1 / 2 / 5 / 10 / 20 GB / 自定义，如 `5 GB`、`500 MB`）。总流量（上行+下行）达到阈值时：播放柔和钟声 + 系统通知横幅（未授权通知时回退为应用内弹窗）。每个阈值只提醒一次，「重置计数」或换档后重新武装；阈值选择会记住（UserDefaults）。
+## Build and run
 
-## 开发
+```bash
+swift build                                  # build
+./scripts/make-app.sh                        # produce "Traffic Monitor.app"
+open "Traffic Monitor.app"
+```
 
-主页窗口包含：运行时长、两张接口卡片（接口名、实时速率、累计收发）与近 120 秒的滚动速率折线图（上传/下载双线，自适应浅色/深色模式）。
+Or run from the build directory:
 
-## 开发
+```bash
+.build/debug/TrafficMonitor
+```
 
-    swift build                                  # 构建
-    TRAFFICMONITOR_SELFTEST=1 swift run TrafficMonitor   # 运行全部 65 项自测
-    TRAFFICMONITOR_SHOWHOME=1 open "Traffic Monitor.app" # 启动即打开主页（诊断用）
-    TRAFFICMONITOR_ALERT_MB=1 open "Traffic Monitor.app" # 启动即设 1MB 告警阈值（验证用）
+### Diagnostics flags
 
-接口分类规则：Wi-Fi 按接口类型 `IEEE80211`；iPhone USB 按硬件端口显示名含 "iPhone"（`SCNetworkInterfaceGetLocalizedDisplayName`）。字节计数走 `sysctl(NET_RT_IFLIST2)` 的 64 位 `if_data64`（与 `netstat -ib` 同源；`getifaddrs` 的 `ifa_data` 是 32 位 `if_data`，会回绕）。
+| Environment variable | Effect |
+|---|---|
+| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; currently 92 checks) |
+| `TRAFFICMONITOR_SHOWHOME=1` | Open the home window immediately on launch |
+| `TRAFFICMONITOR_ALERT_MB=1` | Pre-set a 1 MB alert threshold for verifying the alert path |
 
-## 环境说明
+## How it works
 
-本机仅有 Command Line Tools（无 Xcode），因此：
+- Byte counters come from `sysctl(NET_RT_IFLIST2)` — 64-bit `if_data64`, the
+  same source as `netstat -ib`. (`getifaddrs` exposes only the 32-bit
+  `if_data` on macOS, which wraps around.)
+- Interfaces are classified as **Wi-Fi** by interface type `IEEE80211`, and as
+  **iPhone USB** by a localized hardware-port display name containing
+  "iPhone" (`SCNetworkInterfaceGetLocalizedDisplayName`).
+- Rates are per-second deltas between samples; totals accumulate from the
+  last reset. Threshold state is persisted in `UserDefaults`.
 
-- 测试内置在主程序里，以 `TRAFFICMONITOR_SELFTEST=1` 进入自测模式，退出码报告结果
-- UI 用 AppKit（`NSStatusItem`）而非 SwiftUI `MenuBarExtra`——CLT 加载不了 SDK 内置的 SwiftUI 宏插件
+## Development
 
-设计文档见 `docs/superpowers/specs/`，实现计划见 `docs/superpowers/plans/`。
+The project is a single SwiftPM executable target with an AppKit UI
+(`NSStatusItem` + `NSWindow`) — no third-party dependencies.
+
+Under the Command Line Tools toolchain, XCTest is unavailable, so the
+self-test suite is built into the executable and selected with the
+`TRAFFICMONITOR_SELFTEST` flag. Please extend it in
+`Sources/TrafficMonitor/SelfTest/` when you change behavior.
+
+Design documents and implementation plans live in `docs/superpowers/`.
+
+## Contributing
+
+Contributions are welcome! The project follows a
+[Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)
+branching model: branch `feature/*` or `bugfix/*` off `develop` and open pull
+requests against `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md) for build
+instructions, conventions, and the PR checklist.
+
+## License
+
+[MIT](LICENSE) © Shin L (hajifish)
