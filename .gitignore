@@ -1,0 +1,14 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+xcuserdata/
+
+# App bundles produced by scripts/make-app.sh
+*.app
+
+# macOS
+.DS_Store
+
+# Xcode (if a project file is ever generated locally)
+DerivedData/
+*.xcuserstate
