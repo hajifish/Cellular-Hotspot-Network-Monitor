@@ -116,7 +116,8 @@ log show --last 1h --predicate 'subsystem == "local.shin.TrafficMonitor"'
 - **分支保护**（首次推送后在 GitHub 设置）：`main` 与 `develop` 禁直推、
   必须 PR、必须通过 `CI` 检查。
 - **发布**：从 `develop` 分出 `release/x.y.z`，定稿 `CHANGELOG.md`，合入
-  `main`，打 tag `vx.y.z`，再回合 `develop`。
+  `main`，打 tag `vx.y.z`，再回合 `develop`。然后在 GitHub 基于 tag 发布
+  Release——`Release` 工作流会自动打包 DMG/ZIP 并挂到 Release 页。
 - **紧急修复**：从 `main` 分出 `hotfix/x.y.z`，合回 `main` 并打 tag，再回合
   `develop`。
 

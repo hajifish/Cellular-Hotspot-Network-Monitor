@@ -51,8 +51,19 @@
 
 ## 环境要求
 
+- Apple Silicon (arm64) Mac
 - macOS 14 (Sonoma) 或更高
 - Swift 5.9 工具链 —— 仅需 Command Line Tools，**无需**完整 Xcode
+
+## 安装
+
+从 [Releases](https://github.com/hajifish/Cellular-Hotspot-Network-Monitor/releases)
+下载 DMG（拖进 Applications）或 ZIP（解压即用）——发布 Release 时 CI 会自动
+打包并挂到 Release 页（仅 Apple Silicon）。
+
+> 应用为 ad-hoc 签名（无公证），首次打开若被 Gatekeeper 拦截：右键点击应用
+> → 「打开」，或执行
+> `xattr -d com.apple.quarantine "/Applications/Traffic Monitor.app"`。
 
 ## 构建与运行
 

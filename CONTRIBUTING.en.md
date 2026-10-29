@@ -126,7 +126,9 @@ log show --last 1h --predicate 'subsystem == "local.shin.TrafficMonitor"'
 - **Branch protection** (set on GitHub after the first push): `main` and
   `develop` — no direct pushes, require PRs, require the `CI` check to pass.
 - **Releases**: cut `release/x.y.z` from `develop`, finalize `CHANGELOG.md`,
-  merge to `main`, tag `vx.y.z`, back-merge into `develop`.
+  merge to `main`, tag `vx.y.z`, back-merge into `develop`. Then publish a
+  GitHub Release on the tag — the `Release` workflow builds and attaches the
+  DMG/ZIP automatically.
 - **Hotfixes**: cut `hotfix/x.y.z` from `main`, merge back to `main`, tag,
   then back-merge into `develop`.
 
