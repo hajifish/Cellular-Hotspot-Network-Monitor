@@ -22,8 +22,8 @@ moment it starts, per interface, and puts the answer one click away.
 
 - **Menu bar rates** — live `↑ ↓` up/down rates, refreshed every second
 - **Four display modes** — two independent toggles (live rates / totals),
-  including a compact two-row layout when both are shown, or icon-only;
-  your choice is remembered
+  each rendered as a compact two-line ↑/↓ group; with both enabled the
+  groups sit side by side, or icon-only; your choice is remembered
 - **Per-interface totals** — Wi-Fi and iPhone USB share, each with
   receive/transmit totals and the start time; ⌘R resets the counters
 - **Traffic alerts** — thresholds off / 1 / 2 / 5 / 10 / 20 GB or custom
