@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1424"/>
+      <stop offset="1" stop-color="#131d33"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="0.6" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#ef4444"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- backdrop -->
+  <rect x="0" y="0" width="1200" height="400" rx="24" fill="url(#bg)" stroke="#1f2a44" stroke-width="2"/>
+  <g stroke="#223052" stroke-width="1" opacity="0.35">
+    <line x1="0" y1="100" x2="1200" y2="100"/><line x1="0" y1="200" x2="1200" y2="200"/><line x1="0" y1="300" x2="1200" y2="300"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="48" y="66" font-size="32" font-weight="700" fill="#e2e8f0">Traffic Monitor</text>
+  <rect x="48" y="82" width="196" height="24" rx="12" fill="#1b2448" stroke="#2e3d5c"/>
+  <text x="146" y="99" font-size="13" fill="#7dd3fc" text-anchor="middle" font-family="Menlo, monospace">macOS · menu bar</text>
+
+  <!-- iPhone -->
+  <g transform="translate(88,128)">
+    <rect x="0" y="0" width="148" height="248" rx="26" fill="#1b2437" stroke="#2e3d5c" stroke-width="3"/>
+    <rect x="12" y="12" width="124" height="224" rx="18" fill="#0c1322"/>
+    <rect x="54" y="18" width="40" height="10" rx="5" fill="#1b2437"/>
+    <!-- signal bars + 5G -->
+    <g fill="#34d399">
+      <rect x="26" y="44" width="6" height="10" rx="2"/>
+      <rect x="36" y="38" width="6" height="16" rx="2"/>
+      <rect x="46" y="32" width="6" height="22" rx="2"/>
+      <rect x="56" y="26" width="6" height="28" rx="2"/>
+    </g>
+    <text x="72" y="46" font-size="14" fill="#94a3b8" font-family="Menlo, monospace">5G</text>
+    <rect x="102" y="34" width="22" height="12" rx="3" fill="none" stroke="#94a3b8"/>
+    <rect x="104" y="36" width="14" height="8" rx="1.5" fill="#34d399"/>
+    <!-- hotspot glyph -->
+    <g stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round">
+      <path d="M 60 96 a 14 14 0 0 1 28 0"/>
+      <path d="M 52 86 a 22 22 0 0 1 44 0"/>
+      <path d="M 44 76 a 30 30 0 0 1 60 0"/>
+    </g>
+    <circle cx="74" cy="106" r="4" fill="#38bdf8"/>
+    <!-- usage on phone -->
+    <text x="74" y="152" font-size="26" font-weight="700" fill="#e2e8f0" text-anchor="middle" font-family="Menlo, monospace">12.4</text>
+    <text x="74" y="172" font-size="13" fill="#64748b" text-anchor="middle" font-family="Menlo, monospace">/ 20 GB</text>
+    <rect x="26" y="188" width="96" height="8" rx="4" fill="#1e293b"/>
+    <rect x="26" y="188" width="60" height="8" rx="4" fill="url(#hot)"/>
+    <text x="74" y="222" font-size="11" fill="#475569" text-anchor="middle" font-family="Menlo, monospace">hotspot on</text>
+  </g>
+
+  <!-- USB cable -->
+  <path d="M 236 330 C 330 372, 380 220, 470 250" fill="none" stroke="#475569" stroke-width="9" stroke-linecap="round"/>
+  <rect x="228" y="322" width="20" height="16" rx="4" fill="#64748b"/>
+  <g filter="url(#glow)">
+    <circle cx="318" cy="322" r="5" fill="#34d399"/>
+    <circle cx="368" cy="284" r="5" fill="#38bdf8"/>
+    <circle cx="416" cy="252" r="5" fill="#34d399"/>
+  </g>
+
+  <!-- menu bar -->
+  <g transform="translate(492,124)">
+    <rect x="0" y="0" width="624" height="46" rx="10" fill="#0f172a" stroke="#1f2a44" stroke-width="2"/>
+    <text x="20" y="30" font-size="18" font-weight="700" fill="#34d399" font-family="Menlo, monospace">&#8593;</text>
+    <text x="42" y="30" font-size="18" fill="#e2e8f0" font-family="Menlo, monospace">0.4MB/s</text>
+    <text x="150" y="30" font-size="18" font-weight="700" fill="#38bdf8" font-family="Menlo, monospace">&#8595;</text>
+    <text x="172" y="30" font-size="18" fill="#e2e8f0" font-family="Menlo, monospace">2.1MB/s</text>
+    <text x="282" y="30" font-size="18" font-weight="700" fill="#34d399" font-family="Menlo, monospace">&#8593;</text>
+    <text x="304" y="30" font-size="18" fill="#94a3b8" font-family="Menlo, monospace">9.1GB</text>
+    <text x="392" y="30" font-size="18" font-weight="700" fill="#38bdf8" font-family="Menlo, monospace">&#8595;</text>
+    <text x="414" y="30" font-size="18" fill="#94a3b8" font-family="Menlo, monospace">12.4GB</text>
+    <!-- alert bell -->
+    <g transform="translate(560,23)" filter="url(#glow)">
+      <path d="M -9 7 L 9 7 L 6 3 C 5 -6 2 -9 0 -9 C -2 -9 -5 -6 -6 3 Z" fill="#fbbf24"/>
+      <circle cx="0" cy="9.5" r="2.4" fill="#fbbf24"/>
+      <path d="M -13 -4 a 15 15 0 0 1 6 -8" stroke="#fbbf24" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M 13 -4 a 15 15 0 0 0 -6 -8" stroke="#fbbf24" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- home panel: interface cards -->
+  <g transform="translate(492,196)">
+    <rect x="0" y="0" width="302" height="150" rx="12" fill="#111a2e" stroke="#223052"/>
+    <circle cx="24" cy="26" r="5" fill="#34d399"/>
+    <text x="38" y="31" font-size="15" fill="#cbd5e1">Wi-Fi</text>
+    <text x="24" y="66" font-size="17" fill="#e2e8f0" font-family="Menlo, monospace">&#8593; 0.4 MB/s&#160;&#160;&#8595; 2.1 MB/s</text>
+    <text x="24" y="96" font-size="15" fill="#94a3b8" font-family="Menlo, monospace">TX 2.1 GB&#160;&#160;RX 8.3 GB</text>
+    <rect x="24" y="116" width="254" height="7" rx="3.5" fill="#1e293b"/>
+    <rect x="24" y="116" width="98" height="7" rx="3.5" fill="#34d399"/>
+
+    <rect x="322" y="0" width="302" height="150" rx="12" fill="#111a2e" stroke="#223052"/>
+    <circle cx="346" cy="26" r="5" fill="#38bdf8"/>
+    <text x="360" y="31" font-size="15" fill="#cbd5e1">iPhone USB</text>
+    <text x="346" y="66" font-size="17" fill="#e2e8f0" font-family="Menlo, monospace">&#8593; 1.8 MB/s&#160;&#160;&#8595; 9.2 MB/s</text>
+    <text x="346" y="96" font-size="15" fill="#94a3b8" font-family="Menlo, monospace">TX 3.3 GB&#160;&#160;RX 9.1 GB</text>
+    <rect x="346" y="116" width="254" height="7" rx="3.5" fill="#1e293b"/>
+    <rect x="346" y="116" width="228" height="7" rx="3.5" fill="#fbbf24"/>
+    <text x="608" y="122" font-size="13" fill="#fbbf24" text-anchor="end" font-family="Menlo, monospace">10 GB &#9888;</text>
+  </g>
+
+  <!-- footer note -->
+  <text x="1152" y="376" font-size="13" fill="#475569" text-anchor="end" font-family="Menlo, monospace">monitor &#183; alert &#183; breathe easy</text>
+</svg>

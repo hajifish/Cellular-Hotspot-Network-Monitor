@@ -4,19 +4,31 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)
 
-**Traffic Monitor** — a native macOS menu bar app that tracks the data your Mac
-pushes over Wi-Fi and over a USB-tethered iPhone (cellular hotspot): live
-up/down rates in the menu bar, per-module cumulative totals, and a traffic
-alert when you cross a limit you set.
-
 *[简体中文](README.md) | English*
 
-## Why
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Traffic Monitor: iPhone USB hotspot → live menu-bar rates → traffic alerts" width="760">
+</p>
 
-macOS tells you per-app network usage, but when you share your iPhone's
-cellular connection over USB it gives no simple answer to "how much of my
-mobile plan have I used since I plugged in?". Traffic Monitor counts from the
-moment it starts, per interface, and puts the answer one click away.
+> ### 📱 Tethering your Mac to your phone's cellular plan? The scary part is silently blowing through the cap.
+>
+> **Traffic Monitor lives in your menu bar and watches every MB for you:**
+> Wi-Fi and USB-tethered iPhone traffic are metered separately with live
+> per-second rates; the moment your total crosses a threshold — **with
+> per-GB alerting supported by default** (1 / 2 / 5 / 10 / 20 GB presets,
+> one alert per threshold) — you get a soft chime plus a system
+> notification. Your data budget, at a glance — no more guessing.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/screenshot-home.png" alt="Home window: session summary, interface cards, 120s rate graph" width="640"><br>
+  <em>Home window: session summary, per-interface cards (with independent reset), rolling 120-second rate graph</em>
+</p>
+<p align="center">
+  <img src="docs/assets/screenshot-menubar.png" alt="Menu bar: live up/down rates" width="420"><br>
+  <em>Menu bar: live rates and totals, switchable display modes</em>
+</p>
 
 ## Features
 
@@ -32,9 +44,11 @@ moment it starts, per interface, and puts the answer one click away.
   after confirmation it clears only that module's counters and clock, and
   any reset re-arms the traffic alert
 - **Traffic alerts** — thresholds off / 1 / 2 / 5 / 10 / 20 GB or custom
-  values (`5 GB`, `500 MB`). On crossing: a soft chime plus a system
-  notification (in-app dialog if notifications are not authorized). Fires
-  once per threshold and re-arms on reset or change
+  values (`5 GB`, `500 MB`), presented as a plan budget: once armed, the
+  menu and home window show the remainder ("剩 X · 已用 Y%" = X left · Y%
+  used). On crossing: a soft chime plus a system notification (in-app
+  dialog if notifications are not authorized) and the strip turns red.
+  Fires once per threshold and re-arms on reset or change
 - **Home window (⌘0)** — interface cards (name, live rates, totals, reset)
   and a rolling 120-second upload/download rate graph that adapts to light
   and dark mode

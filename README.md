@@ -4,17 +4,29 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)
 
-**Traffic Monitor** —— 原生 macOS 菜单栏应用，统计 Mac 通过 Wi-Fi 与 USB 共享
-iPhone（蜂窝热点）产生的流量：菜单栏实时显示上行/下行速率，按模块累计各接口
-收发总量，越过设定阈值时发出流量告警。
-
 *简体中文 | [English](README.en.md)*
 
-## 为什么做这个
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Traffic Monitor：iPhone USB 热点 → 菜单栏实时速率 → 流量告警" width="760">
+</p>
 
-macOS 能查每个 App 的网络用量，但当你用 USB 共享 iPhone 蜂窝网络时，「插上
-这一路用了多少流量」没有简单的答案。Traffic Monitor 从启动时刻起按接口计数，
-把答案放在菜单栏一点即达。
+> ### 📱 用手机流量给电脑联网？最怕的就是不知不觉跑超套餐。
+>
+> **Traffic Monitor 常驻菜单栏，帮你盯紧每一 MB：** Wi-Fi 与 USB 共享 iPhone
+> 的流量分开计量、实时速率每秒刷新；总流量一到设定的档位——**默认支持按每
+> 1 GB 一档告警**（1 / 2 / 5 / 10 / 20 GB，越线即报）——立刻柔和钟声 +
+> 系统通知。套餐用量有多少，一抬眼就知道，不再靠猜。
+
+## 界面预览
+
+<p align="center">
+  <img src="docs/assets/screenshot-home.png" alt="主页窗口：会话摘要、接口卡片与近 120 秒速率曲线" width="640"><br>
+  <em>主页窗口：会话摘要、双接口卡片（含独立重置）、近 120 秒速率曲线</em>
+</p>
+<p align="center">
+  <img src="docs/assets/screenshot-menubar.png" alt="菜单栏：实时上行/下行速率" width="420"><br>
+  <em>菜单栏：实时速率与累计流量，档位显示模式任你切换</em>
+</p>
 
 ## 功能
 
@@ -26,8 +38,9 @@ macOS 能查每个 App 的网络用量，但当你用 USB 共享 iPhone 蜂窝�
 - **按模块重置** —— 主页每张接口卡片右上角「重置计量」按钮，确认后仅重置该
   模块的计数与时钟；任一模块重置都会重新武装流量告警
 - **流量告警** —— 阈值可选关闭 / 1 / 2 / 5 / 10 / 20 GB / 自定义（如 `5 GB`、
-  `500 MB`）。达到阈值时播放柔和钟声 + 系统通知横幅（未授权通知时回退为应用内
-  弹窗）。每个阈值只提醒一次，重置或换档后重新武装
+  `500 MB`），按套餐预算呈现：设置后菜单与主页显示余量「剩 X · 已用 Y%」。
+  达到阈值时播放柔和钟声 + 系统通知横幅（未授权通知时回退为应用内弹窗），
+  告警条变红。每个阈值只提醒一次，重置或换档后重新武装
 - **主页窗口（⌘0）** —— 接口卡片（接口名、实时速率、累计收发、重置按钮）、
   近 120 秒滚动速率折线图（上传/下载双线，自适应浅色/深色模式）
 - **自身不访问网络** —— 只读内核接口计数器
