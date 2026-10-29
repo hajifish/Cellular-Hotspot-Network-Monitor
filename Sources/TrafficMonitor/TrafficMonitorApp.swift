@@ -95,34 +95,54 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: - 状态栏内容
 
-    /// 状态栏：仅图标模式下显示软件 `↑↓` 符号 + 按双开关拼文字（同开时上下两行）+ 告警铃铛后缀
+    /// 状态栏：内容渲染为整张图片交给按钮垂直居中（多行文字不会被贴顶裁切）；
+    /// 仅图标模式显示软件 `↑↓` 符号；告警铃铛始终追加在内容之后
     private func updateStatusBarContent() {
         guard let button = statusItem.button else { return }
         let store = monitor.store
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let textColor = isDark ? NSColor(srgbRed: 0.94, green: 0.94, blue: 0.92, alpha: 1)
+                               : NSColor(white: 0.1, alpha: 1)
 
         var content = NSMutableAttributedString()
         if let attributed = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,
                                                           showTotals: StatusBarPrefs.showTotals,
+                                                          textColor: textColor,
                                                           totalRate: monitor.totalRate,
                                                           totalRX: store.wifiRX + store.iphoneRX,
                                                           totalTX: store.wifiTX + store.iphoneTX) {
-            button.image = nil
             content.append(attributed)
-        } else {
-            // 只显示图标：app 本体符号
-            button.image = NSImage(systemSymbolName: "arrow.up.arrow.down",
-                                   accessibilityDescription: "Traffic Monitor")
+        } else if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
+                                                          color: textColor, size: 13) {
+            let attachment = NSTextAttachment()
+            attachment.image = icon
+            attachment.bounds = NSRect(x: 0, y: -1, width: 13, height: 13)
+            content.append(NSAttributedString(attachment: attachment))
         }
 
         if alert.threshold != nil {
-            if content.length > 0 { content.append(NSAttributedString(string: " ")) }
+            if content.length > 0 { content.append(NSAttributedString(string: "  ")) }
             content.append(MenuTextBuilder.bellAttachment(fired: alert.fired))
-            button.title = ""
-            button.attributedTitle = content
-        } else {
-            button.attributedTitle = NSAttributedString(string: "")
-            button.title = content.string
         }
+
+        button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
+        button.image = renderedImage(of: content)
+    }
+
+    /// 把富文本渲染成位图（按钮对图片是垂直居中的，规避多行文本贴顶问题）。
+    /// 文本已带显式颜色，无需外观解析。
+    private func renderedImage(of text: NSAttributedString) -> NSImage {
+        let bounds = text.boundingRect(with: NSSize(width: 400, height: 60),
+                                       options: [.usesLineFragmentOrigin, .usesFontLeading])
+        let padding: CGFloat = 2
+        let size = NSSize(width: ceil(bounds.width) + padding * 2,
+                          height: ceil(bounds.height) + padding * 2)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        text.draw(at: NSPoint(x: padding, y: padding))
+        image.unlockFocus()
+        return image
     }
 
     // MARK: - 流量告警

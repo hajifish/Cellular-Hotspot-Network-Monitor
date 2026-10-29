@@ -37,11 +37,13 @@ enum StatusBarFormatter {
     /// 布局：实时速率与累计流量各自是一组「↑上 / ↓下」两行竖排；
     /// 同开时两组并排（列间两个空格）。8pt 紧行距，保证不超出菜单栏高度。
     ///
+    /// textColor 需由调用方按菜单栏明暗传入显式色（位图渲染中语义色解析不可靠）。
+    ///
     /// ```text
     /// ↑5.1KB/s  ↑3.9MB
     /// ↓9.2KB/s  ↓1.2MB
     /// ```
-    static func attributed(showRates: Bool, showTotals: Bool,
+    static func attributed(showRates: Bool, showTotals: Bool, textColor: NSColor,
                            totalRate: CategoryDelta, totalRX: UInt64, totalTX: UInt64) -> NSAttributedString? {
         struct Segment {
             let arrow: String
@@ -70,20 +72,16 @@ enum StatusBarFormatter {
 
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 0
-        paragraph.lineHeightMultiple = 0.85
+        paragraph.lineHeightMultiple = 0.9
         paragraph.alignment = .left
-        // 状态栏按钮把多行内容贴顶渲染：每行独立基线下压，模拟垂直居中
-        let rowBaselines: [CGFloat] = [-4, -1]
 
         let result = NSMutableAttributedString()
         let rowCount = columns[0].count
         for row in 0..<rowCount {
-            let baseline = rowBaselines[min(row, rowBaselines.count - 1)]
             if row > 0 {
                 result.append(NSAttributedString(string: "\n", attributes: [
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
                     .paragraphStyle: paragraph,
-                    .baselineOffset: baseline,
                 ]))
             }
             for (columnIndex, column) in columns.enumerated() {
@@ -91,16 +89,15 @@ enum StatusBarFormatter {
                     result.append(NSAttributedString(string: "  ", attributes: [
                         .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
                         .paragraphStyle: paragraph,
-                        .baselineOffset: baseline,
                     ]))
                 }
                 let segment = column[row]
                 let font = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .medium)
                 result.append(NSAttributedString(string: segment.arrow, attributes: [
-                    .font: font, .foregroundColor: segment.arrowColor, .baselineOffset: baseline,
+                    .font: font, .foregroundColor: segment.arrowColor,
                 ]))
                 result.append(NSAttributedString(string: segment.value, attributes: [
-                    .font: font, .foregroundColor: NSColor.labelColor, .baselineOffset: baseline,
+                    .font: font, .foregroundColor: textColor,
                 ]))
             }
         }
