@@ -3,15 +3,21 @@ enum HomePageTests {
         niceMaximumRoundUp()
         durationTextFormatting()
         ratePartsSplit()
-        alertStripTextFormatting()
+        alertStripFormatting()
     }
 
-    static func alertStripTextFormatting() {
-        TestRun.expectEqual(HomePageController.alertStripText(threshold: nil, totalBytes: 5_000_000), "未设置", "no threshold")
-        let armed = HomePageController.alertStripText(threshold: 1_000, totalBytes: 250)
-        TestRun.expectEqual(armed, "1.0 KB · 已用 25%", "armed with percent")
-        let over = HomePageController.alertStripText(threshold: 1_000, totalBytes: 5_000)
-        TestRun.expectEqual(over, "1.0 KB · 已用 100%", "percent clamped")
+    static func alertStripFormatting() {
+        let unset = HomePageController.alertStrip(threshold: nil, fired: false, totalBytes: 100)
+        TestRun.expectEqual(unset.text, "未设置", "unset text")
+        TestRun.expect(unset.state == .unset, "unset state")
+
+        let armed = HomePageController.alertStrip(threshold: 1_000, fired: false, totalBytes: 250)
+        TestRun.expectEqual(armed.text, "剩 750B · 已用 25%", "armed shows remaining and percent")
+        TestRun.expect(armed.state == .armed, "armed state")
+
+        let fired = HomePageController.alertStrip(threshold: 1_000, fired: true, totalBytes: 5_000)
+        TestRun.expectEqual(fired.text, "已触发 · 已用 100%", "fired text")
+        TestRun.expect(fired.state == .fired, "fired state")
     }
 
     static func ratePartsSplit() {
