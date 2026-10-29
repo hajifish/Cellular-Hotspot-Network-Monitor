@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-29
+
 ### 新增 (Added)
 
 - 应用 LOGO 与 App 图标：`docs/assets/logo.svg`（macOS 玻璃质感，基于菜单栏
