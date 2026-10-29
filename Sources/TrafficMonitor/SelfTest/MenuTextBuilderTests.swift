@@ -23,7 +23,10 @@ enum MenuTextBuilderTests {
         let armed = MenuTextBuilder.alertHeader(armed: true, fired: false)
         TestRun.expect(armed?.string.contains("流量告警") == true, "armed has label")
         TestRun.expect(armed?.string.contains("●") == true, "armed has dot")
-        let fired = MenuTextBuilder.alertHeader(armed: true, fired: true)
+        let armedWithDetail = MenuTextBuilder.alertHeader(armed: true, fired: false, detail: "剩 2.0GB")
+        TestRun.expect(armedWithDetail?.string.contains("剩 2.0GB") == true, "armed shows detail")
+        let fired = MenuTextBuilder.alertHeader(armed: true, fired: true, detail: "已触发")
+        TestRun.expect(fired?.string.contains("已触发") == true, "fired shows detail")
         TestRun.expect(fired?.string.contains("●") == true, "fired has dot")
     }
 }

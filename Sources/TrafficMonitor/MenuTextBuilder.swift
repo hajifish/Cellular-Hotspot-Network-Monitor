@@ -50,11 +50,13 @@ enum MenuTextBuilder {
         return text
     }
 
-    /// 「流量告警」配置项标记：已设置时变橙、触发后变红；未设置返回 nil（普通样式）
-    static func alertHeader(armed: Bool, fired: Bool) -> NSAttributedString? {
+    /// 「流量告警」配置项标记：已设置时变橙并附剩余量，触发后变红；未设置返回 nil（普通样式）
+    static func alertHeader(armed: Bool, fired: Bool, detail: String = "") -> NSAttributedString? {
         guard armed else { return nil }
         let color = fired ? NSColor.systemRed : NSColor.systemOrange
-        return NSAttributedString(string: "● 流量告警", attributes:
+        var text = "● 流量告警"
+        if !detail.isEmpty { text += " · " + detail }
+        return NSAttributedString(string: text, attributes:
             attributes(size: 13, color: color, weight: .semibold))
     }
 

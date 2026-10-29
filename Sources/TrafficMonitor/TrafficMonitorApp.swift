@@ -144,26 +144,40 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: - 流量告警
 
+    /// 预设档位（菜单展示与勾选判定共用）
+    static let alertPresets: [(label: String, bytes: UInt64?)] = [
+        ("关闭", nil),
+        ("1 GB", 1 * MenuBarController.gigabyte),
+        ("2 GB", 2 * MenuBarController.gigabyte),
+        ("5 GB", 5 * MenuBarController.gigabyte),
+        ("10 GB", 10 * MenuBarController.gigabyte),
+        ("20 GB", 20 * MenuBarController.gigabyte),
+    ]
+    private var customAlertItem: NSMenuItem!
+
     private func buildAlertMenu() -> NSMenu {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
-        let presets: [(String, UInt64?)] = [
-            ("关闭", nil),
-            ("1 GB", 1 * Self.gigabyte),
-            ("2 GB", 2 * Self.gigabyte),
-            ("5 GB", 5 * Self.gigabyte),
-            ("10 GB", 10 * Self.gigabyte),
-            ("20 GB", 20 * Self.gigabyte),
-        ]
-        for (title, bytes) in presets {
-            let item = NSMenuItem(title: title, action: #selector(selectAlertPreset(_:)), keyEquivalent: "")
+
+        let caption = NSMenuItem(title: "总流量达到阈值时提醒一次", action: nil, keyEquivalent: "")
+        caption.isEnabled = false
+        caption.attributedTitle = NSAttributedString(string: caption.title, attributes: [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+        submenu.addItem(caption)
+        submenu.addItem(.separator())
+
+        for preset in Self.alertPresets {
+            let item = NSMenuItem(title: preset.label, action: #selector(selectAlertPreset(_:)), keyEquivalent: "")
             item.target = self
-            item.representedObject = bytes.map { NSNumber(value: $0) }
+            item.representedObject = preset.bytes.map { NSNumber(value: $0) }
             submenu.addItem(item)
         }
         submenu.addItem(.separator())
         let custom = NSMenuItem(title: "自定义…", action: #selector(showCustomAlertThreshold), keyEquivalent: "")
         custom.target = self
+        customAlertItem = custom
         submenu.addItem(custom)
         return submenu
     }
@@ -194,17 +208,35 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func selectAlertPreset(_ sender: NSMenuItem) {
         let bytes = (sender.representedObject as? NSNumber)?.uint64Value
-        applyAlertThreshold(bytes, persist: bytes != nil)
+        guard bytes != alert.threshold else { return } // 与当前设置相同，无需动作
+        if bytes == nil {
+            applyAlertThreshold(nil, persist: false) // 关闭无需确认
+            return
+        }
+        let label = Self.alertPresets.first { $0.bytes == bytes }?.label ?? ByteFormat.string(bytes ?? 0)
+        guard confirmAlertSetting(label: label) else { return }
+        applyAlertThreshold(bytes, persist: true)
+    }
+
+    /// 设置新阈值前的确认框：说明提醒进度会重置
+    private func confirmAlertSetting(label: String) -> Bool {
+        let dialog = NSAlert()
+        dialog.messageText = "设置流量告警：\(label)"
+        dialog.informativeText = "总流量（上行+下行）达到 \(label) 时会提醒一次。\n设置后提醒进度将重新计算，之前已触发的提醒状态会被清除。"
+        dialog.addButton(withTitle: "设置")
+        dialog.addButton(withTitle: "取消")
+        NSApp.activate(ignoringOtherApps: true)
+        return dialog.runModal() == .alertFirstButtonReturn
     }
 
     @objc private func showCustomAlertThreshold() {
         let dialog = NSAlert()
         dialog.messageText = "自定义流量告警阈值"
-        dialog.informativeText = "总流量（上行+下行）达到该值时提醒一次。示例：5 GB、500 MB。"
+        dialog.informativeText = "输入达到时提醒的总流量（上行+下行），示例：5 GB、500 MB。\n设置后提醒进度将重新计算，已触发的提醒状态会被清除。"
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
         input.placeholderString = "5 GB"
         dialog.accessoryView = input
-        dialog.addButton(withTitle: "确定")
+        dialog.addButton(withTitle: "设置")
         dialog.addButton(withTitle: "取消")
         NSApp.activate(ignoringOtherApps: true)
         guard dialog.runModal() == .alertFirstButtonReturn,
@@ -229,17 +261,21 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func refreshAlertMenuStates() {
+        let threshold = alert.threshold
+        var matchedPreset = false
         for item in alertMenu.items where item.action == #selector(selectAlertPreset(_:)) {
             let bytes = (item.representedObject as? NSNumber)?.uint64Value
-            item.state = bytes == alert.threshold ? .on : .off
+            let on = bytes == threshold
+            item.state = on ? .on : .off
+            matchedPreset = matchedPreset || on
         }
-        // 自定义阈值时清除预设勾选
-        if let threshold = alert.threshold,
-           !alertMenu.items.contains(where: {
-               $0.action == #selector(selectAlertPreset(_:)) &&
-               ($0.representedObject as? NSNumber)?.uint64Value == threshold
-           }) {
-            // 保持预设全部不勾选即可，无需额外操作
+        // 自定义阈值：回显当前值并勾选
+        if let threshold {
+            customAlertItem.title = matchedPreset ? "自定义…" : "自定义 · \(ByteFormat.string(threshold))"
+            customAlertItem.state = matchedPreset ? .off : .on
+        } else {
+            customAlertItem.title = "自定义…"
+            customAlertItem.state = .off
         }
     }
 
@@ -319,8 +355,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.iphone.displayName,
             rx: store.iphone.rx, tx: store.iphone.tx, rate: monitor.iphoneRate)
+        let totalBytesForAlert = store.wifi.rx + store.wifi.tx
+            + store.iphone.rx + store.iphone.tx
+        let strip = HomePageController.alertStrip(threshold: alert.threshold,
+                                                  fired: alert.fired,
+                                                  totalBytes: totalBytesForAlert)
+        let detail: String
+        switch strip.state {
+        case .unset: detail = ""
+        case .armed: detail = strip.text
+        case .fired: detail = "已触发"
+        }
         alertItem.attributedTitle = MenuTextBuilder.alertHeader(
-            armed: alert.threshold != nil, fired: alert.fired)
+            armed: alert.threshold != nil, fired: alert.fired, detail: detail)
     }
 
     private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {
