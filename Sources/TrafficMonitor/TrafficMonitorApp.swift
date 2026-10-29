@@ -84,6 +84,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         // 任一模块重置后重新武装告警（总流量变小，需要重新越线才会再提醒）
         monitor.onReset = { [weak self] in self?.alert.reset() }
+        homeController.alertThresholdProvider = { [weak self] in self?.alert.threshold }
         monitor.start()
         refresh()
         // 诊断/验证用：启动即打开主页

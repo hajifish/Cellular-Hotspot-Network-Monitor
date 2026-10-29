@@ -3,6 +3,15 @@ enum HomePageTests {
         niceMaximumRoundUp()
         durationTextFormatting()
         ratePartsSplit()
+        alertStripTextFormatting()
+    }
+
+    static func alertStripTextFormatting() {
+        TestRun.expectEqual(HomePageController.alertStripText(threshold: nil, totalBytes: 5_000_000), "未设置", "no threshold")
+        let armed = HomePageController.alertStripText(threshold: 1_000, totalBytes: 250)
+        TestRun.expectEqual(armed, "1.0 KB · 已用 25%", "armed with percent")
+        let over = HomePageController.alertStripText(threshold: 1_000, totalBytes: 5_000)
+        TestRun.expectEqual(over, "1.0 KB · 已用 100%", "percent clamped")
     }
 
     static func ratePartsSplit() {
