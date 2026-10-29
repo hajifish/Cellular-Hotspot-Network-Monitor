@@ -1,3 +1,5 @@
+import Foundation
+
 final class FakeSampler: InterfaceSampling {
     var samples: [ClassifiedSample]
     init(samples: [ClassifiedSample]) { self.samples = samples }
@@ -16,6 +18,8 @@ enum TrafficMonitorTests {
         resetZeroesRatesAndStore()
         resetCategoryKeepsOtherCategory()
         firstSampleIsBaselineNotCounted()
+        emptySampleSkipsTickKeepingBaseline()
+        sleepGapKeepsTotalsButRebasesRate()
     }
 
     static func totalRateSumsCategories() {
@@ -66,5 +70,28 @@ enum TrafficMonitorTests {
         let monitor = TrafficMonitor(sampler: FakeSampler(samples: [sample("en0", .wifi, rx: 999_999_999, tx: 999_999_999)]))
         TestRun.expectEqual(monitor.store.wifi.rx, UInt64(0), "baseline rx not counted")
         TestRun.expectEqual(monitor.store.wifi.tx, UInt64(0), "baseline tx not counted")
+    }
+
+    static func emptySampleSkipsTickKeepingBaseline() {
+        // 采样失败（空结果）：该拍整体跳过，基线保留，下一拍照常计差
+        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0)])
+        monitor.update(from: [sample("en0", .wifi, rx: 100, tx: 100)])
+        monitor.update(from: []) // 采样失败
+        TestRun.expectEqual(monitor.store.wifi.rx, UInt64(100), "totals frozen during failure")
+        monitor.update(from: [sample("en0", .wifi, rx: 300, tx: 300)])
+        TestRun.expectEqual(monitor.store.wifi.rx, UInt64(300), "delta counted vs pre-failure baseline")
+        TestRun.expectEqual(monitor.wifiRate, CategoryDelta(rx: 200, tx: 200), "rate resumes normally")
+    }
+
+    static func sleepGapKeepsTotalsButRebasesRate() {
+        // 休眠/唤醒：跨大间隔的一拍把休眠期真实流量计入累计，但速率按重新基线记 0（避免假尖峰）
+        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0)], at: Date())
+        monitor.update(from: [sample("en0", .wifi, rx: 5_000_000, tx: 0)], at: Date().addingTimeInterval(1))
+        monitor.update(from: [sample("en0", .wifi, rx: 6_000_000, tx: 0)], at: Date().addingTimeInterval(60))
+        TestRun.expectEqual(monitor.store.wifi.rx, UInt64(6_000_000), "totals include sleep-period traffic")
+        TestRun.expectEqual(monitor.wifiRate, CategoryDelta.zero, "rate rebased after gap")
+        TestRun.expectEqual(monitor.history.samples.last, RateSample(rx: 0, tx: 0), "history rebased")
     }
 }
