@@ -67,6 +67,7 @@ enum SelfTest {
         TestRun.suite("UpdateChecker") { UpdateCheckerTests.all() }
         TestRun.suite("UpdateInstaller") { UpdateInstallerTests.all() }
         TestRun.suite("UpdateService") { UpdateServiceTests.all() }
+        TestRun.suite("UpdatePresentation") { UpdatePresentationTests.all() }
         TestRun.finish()
     }
 }
