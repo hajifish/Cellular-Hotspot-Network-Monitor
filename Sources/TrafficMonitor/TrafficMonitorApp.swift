@@ -21,7 +21,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     static private(set) var shared: MenuBarController!
 
     private let monitor = TrafficMonitor()
-    private let updateService = UpdateService()
+    private let updateService: UpdateService
     private let homeController: HomePageController
     private let alert = TrafficAlert()
     private let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "alert")
@@ -48,7 +48,8 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     override init() {
-        homeController = HomePageController(monitor: monitor)
+        updateService = UpdateService()
+        homeController = HomePageController(monitor: monitor, updateService: updateService)
         super.init()
         restoreAlertThreshold()
         StatusBarPrefs.migrateLegacyMode()
@@ -120,6 +121,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         }
         updateService.onStateChange = { [weak self] in
             self?.refreshUpdateItems()
+            self?.homeController.refreshUpdateCard()
         }
         updateService.confirmRestartHandler = { [weak self] release, completion in
             self?.showRestartConfirm(release: release, completion: completion)
