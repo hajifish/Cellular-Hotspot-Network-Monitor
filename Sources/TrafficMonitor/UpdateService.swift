@@ -23,6 +23,12 @@ final class UpdateService {
         set { UserDefaults.standard.set(newValue, forKey: autoCheckKey) }
     }
 
+    /// 诊断/验证用：TRAFFICMONITOR_AUTOUPDATE=1 时发现新版本即自动下载并确认重启
+    /// （跳过确认弹窗），用于端到端自测；正常使用不设置该环境变量
+    static var autoUpdateRequested: Bool {
+        ProcessInfo.processInfo.environment["TRAFFICMONITOR_AUTOUPDATE"] == "1"
+    }
+
     private(set) var state: UpdateState = .idle
     private(set) var lastError: String?
     private(set) var lastCheckDate: Date?
@@ -81,6 +87,7 @@ final class UpdateService {
                 lastError = nil
                 state = .available(release)
                 notifyNewVersionOnce(release)
+                if Self.autoUpdateRequested { startDownload() } // 诊断/验证：自动进入下载
             } else {
                 lastError = nil
                 state = .upToDate
@@ -194,6 +201,10 @@ final class UpdateService {
     }
 
     private func confirmRestart(_ release: ReleaseInfo) {
+        if Self.autoUpdateRequested {
+            installNow() // 诊断/验证：跳过弹窗直接重启更新
+            return
+        }
         guard let confirmRestartHandler else { return }
         confirmRestartHandler(release) { [weak self] confirmed in
             if confirmed { self?.installNow() }
