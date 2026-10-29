@@ -67,7 +67,7 @@ enum MenuTextBuilder {
             ?? NSImage(size: NSSize(width: 11, height: 11))
         let attachment = NSTextAttachment()
         attachment.image = image
-        attachment.bounds = NSRect(x: 0, y: -1, width: 11, height: 11)
+        attachment.bounds = NSRect(x: 0, y: -3, width: 11, height: 11)
         return NSAttributedString(attachment: attachment)
     }
 

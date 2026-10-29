@@ -43,20 +43,26 @@ enum StatusBarFormatter {
     /// ```
     static func attributed(showRates: Bool, showTotals: Bool,
                            totalRate: CategoryDelta, totalRX: UInt64, totalTX: UInt64) -> NSAttributedString? {
-        var columns: [[NSAttributedString]] = []
+        struct Segment {
+            let arrow: String
+            let arrowColor: NSColor
+            let value: String
+        }
+
+        var columns: [[Segment]] = []
         if showRates {
             columns.append([
-                segment(arrow: "↑", color: RateGraphView.uploadColor,
+                Segment(arrow: "↑", arrowColor: RateGraphView.uploadColor,
                         value: ByteFormat.rate(totalRate.tx, compact: true)),
-                segment(arrow: "↓", color: RateGraphView.downloadColor,
+                Segment(arrow: "↓", arrowColor: RateGraphView.downloadColor,
                         value: ByteFormat.rate(totalRate.rx, compact: true)),
             ])
         }
         if showTotals {
             columns.append([
-                segment(arrow: "↑", color: RateGraphView.uploadColor,
+                Segment(arrow: "↑", arrowColor: RateGraphView.uploadColor,
                         value: ByteFormat.string(totalTX, compact: true)),
-                segment(arrow: "↓", color: RateGraphView.downloadColor,
+                Segment(arrow: "↓", arrowColor: RateGraphView.downloadColor,
                         value: ByteFormat.string(totalRX, compact: true)),
             ])
         }
@@ -66,14 +72,18 @@ enum StatusBarFormatter {
         paragraph.lineSpacing = 0
         paragraph.lineHeightMultiple = 0.85
         paragraph.alignment = .left
+        // 状态栏按钮把多行内容贴顶渲染：每行独立基线下压，模拟垂直居中
+        let rowBaselines: [CGFloat] = [-4, -1]
 
         let result = NSMutableAttributedString()
         let rowCount = columns[0].count
         for row in 0..<rowCount {
+            let baseline = rowBaselines[min(row, rowBaselines.count - 1)]
             if row > 0 {
                 result.append(NSAttributedString(string: "\n", attributes: [
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
                     .paragraphStyle: paragraph,
+                    .baselineOffset: baseline,
                 ]))
             }
             for (columnIndex, column) in columns.enumerated() {
@@ -81,23 +91,19 @@ enum StatusBarFormatter {
                     result.append(NSAttributedString(string: "  ", attributes: [
                         .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
                         .paragraphStyle: paragraph,
+                        .baselineOffset: baseline,
                     ]))
                 }
-                result.append(column[row])
+                let segment = column[row]
+                let font = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .medium)
+                result.append(NSAttributedString(string: segment.arrow, attributes: [
+                    .font: font, .foregroundColor: segment.arrowColor, .baselineOffset: baseline,
+                ]))
+                result.append(NSAttributedString(string: segment.value, attributes: [
+                    .font: font, .foregroundColor: NSColor.labelColor, .baselineOffset: baseline,
+                ]))
             }
         }
         return result
-    }
-
-    private static func segment(arrow: String, color: NSColor, value: String) -> NSAttributedString {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .medium)
-        let text = NSMutableAttributedString()
-        text.append(NSAttributedString(string: arrow, attributes: [
-            .font: font, .foregroundColor: color,
-        ]))
-        text.append(NSAttributedString(string: value, attributes: [
-            .font: font, .foregroundColor: NSColor.labelColor,
-        ]))
-        return text
     }
 }
