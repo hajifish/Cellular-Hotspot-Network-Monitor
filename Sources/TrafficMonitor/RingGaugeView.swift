@@ -26,10 +26,10 @@ final class RingGaugeView: NSView {
         let center = NSPoint(x: bounds.midX, y: bounds.midY)
         let radius = diameter / 2
 
-        // 轨道环常驻
+        // 轨道环常驻（整圆无方向性；0→360 + clockwise:true 是零扫角，必须反向）
         let track = NSBezierPath()
         track.appendArc(withCenter: center, radius: radius,
-                        startAngle: 0, endAngle: 360, clockwise: true)
+                        startAngle: 0, endAngle: 360, clockwise: false)
         track.lineWidth = lineWidth
         NSColor.white.withAlphaComponent(0.10).setStroke()
         track.stroke()
