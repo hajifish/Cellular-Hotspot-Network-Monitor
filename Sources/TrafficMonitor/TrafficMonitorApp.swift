@@ -169,10 +169,10 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     /// 预设档位（菜单展示与勾选判定共用）
     static let alertPresets: [(label: String, bytes: UInt64?)] = [
         ("关闭", nil),
-        ("100 MB", 100 * MenuBarController.megabyte),
         ("500 MB", 500 * MenuBarController.megabyte),
         ("1 GB", 1 * MenuBarController.gigabyte),
         ("2 GB", 2 * MenuBarController.gigabyte),
+        ("3 GB", 3 * MenuBarController.gigabyte),
         ("5 GB", 5 * MenuBarController.gigabyte),
         ("10 GB", 10 * MenuBarController.gigabyte),
         ("20 GB", 20 * MenuBarController.gigabyte),
