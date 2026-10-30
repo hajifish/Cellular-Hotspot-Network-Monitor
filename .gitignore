@@ -13,3 +13,6 @@ xcuserdata/
 DerivedData/
 *.xcuserstate
 dist/
+
+# Brainstorm visual companion scratch files
+.superpowers/
