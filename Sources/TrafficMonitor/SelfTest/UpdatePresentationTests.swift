@@ -6,6 +6,7 @@ enum UpdatePresentationTests {
         wantsCardOnlyForActiveStates()
         cardAvailableShowsUpdateActions()
         cardProgressAndRestartStates()
+        menuCheckTitleReflectsState()
     }
 
     static func release(_ tag: String) -> ReleaseInfo {
@@ -44,5 +45,19 @@ enum UpdatePresentationTests {
                                                         lastCheck: nil, errorText: nil)
         TestRun.expectEqual(downloaded.primary, "重启以完成更新", "restart action")
         TestRun.expectEqual(downloaded.secondary, "取消更新", "cancel offered")
+    }
+
+    /// 菜单「检查更新」条目文字：检测到新版本（手动或自动）追加「有新版本」
+    static func menuCheckTitleReflectsState() {
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .idle), "检查更新", "idle plain")
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .upToDate), "检查更新", "upToDate plain")
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .failed("x")), "检查更新", "failed plain")
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .checking), "正在检查更新…", "checking feedback")
+        TestRun.expect(UpdatePresentation.menuCheckTitle(for: .available(release("v0.3.0"))).hasSuffix("有新版本"),
+                       "available badge")
+        TestRun.expect(UpdatePresentation.menuCheckTitle(for: .downloading(0.5)).hasSuffix("有新版本"),
+                       "downloading badge")
+        TestRun.expect(UpdatePresentation.menuCheckTitle(for: .downloaded(release("v0.3.0"))).hasSuffix("有新版本"),
+                       "downloaded badge")
     }
 }
