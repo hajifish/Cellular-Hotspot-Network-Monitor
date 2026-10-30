@@ -183,7 +183,8 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         let submenu = NSMenu()
         submenu.autoenablesItems = false
 
-        let caption = NSMenuItem(title: "总流量达到阈值时提醒一次", action: nil, keyEquivalent: "")
+        let caption = NSMenuItem(title: "按所有模块累计上行 + 下行的合并流量提醒一次",
+                                 action: nil, keyEquivalent: "")
         caption.isEnabled = false
         caption.attributedTitle = NSAttributedString(string: caption.title, attributes: [
             .font: NSFont.systemFont(ofSize: 11),
@@ -245,7 +246,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     @objc private func showCustomAlertThreshold() {
         let dialog = NSAlert()
         dialog.messageText = "自定义流量告警阈值"
-        dialog.informativeText = "输入达到时提醒的总流量（上行+下行），示例：5 GB、500 MB。\n设置后提醒进度将重新计算，已触发的提醒状态会被清除。"
+        dialog.informativeText = "输入达到时提醒的合并流量（所有模块累计上行 + 下行）。示例：5 GB、500 MB。\n设置后提醒进度将重新计算，已触发的提醒状态会被清除。"
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
         input.placeholderString = "5 GB"
         dialog.accessoryView = input
