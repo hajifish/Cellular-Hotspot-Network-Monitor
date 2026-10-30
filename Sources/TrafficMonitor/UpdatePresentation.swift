@@ -2,7 +2,16 @@ import Foundation
 
 /// 主页「软件更新」卡片的展示映射（纯函数，可测）；着色等 AppKit 细节在 UI 层完成。
 /// 菜单栏不展示任何更新内容——主页卡片是唯一更新入口（用户决策 2026-10-30）。
+/// 无更新时卡片整体收起，仅在图例行右端以小字展示版本号。
 enum UpdatePresentation {
+    /// 是否需要展示更新卡片（真正有更新进行时才出现框架）
+    static func wantsCard(for state: UpdateState) -> Bool {
+        switch state {
+        case .available, .downloading, .downloaded, .installing: return true
+        case .idle, .checking, .upToDate, .failed: return false
+        }
+    }
+
     /// 卡片内容颜色语义（着色在 HomePageController 做）
     enum CardKind: Equatable {
         case neutral, ok, attention, error
