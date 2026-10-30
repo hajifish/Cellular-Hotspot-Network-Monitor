@@ -4,6 +4,7 @@ enum ByteFormatTests {
         kilobytes()
         megabytesAndGigabytes()
         rateAppendsPerSecond()
+        stringPartsSplit()
     }
 
     static func bytes() {
@@ -25,5 +26,14 @@ enum ByteFormatTests {
     static func rateAppendsPerSecond() {
         TestRun.expectEqual(ByteFormat.rate(0), "0 B/s", "zero rate")
         TestRun.expectEqual(ByteFormat.rate(1_200_000), "1.2 MB/s", "MB rate")
+    }
+
+    static func stringPartsSplit() {
+        let parts = ByteFormat.stringParts(10_400_000_000)
+        TestRun.expectEqual(parts.value, "10.4", "total value part")
+        TestRun.expectEqual(parts.unit, "GB", "total unit part")
+        let zero = ByteFormat.stringParts(0)
+        TestRun.expectEqual(zero.value, "0", "zero value part")
+        TestRun.expectEqual(zero.unit, "B", "zero unit part")
     }
 }

@@ -47,15 +47,18 @@
 - **Per-module reset** — each interface card has a reset button (top-right);
   after confirmation it clears only that module's counters and clock, and
   any reset re-arms the traffic alert
-- **Traffic alerts** — thresholds off / 1 / 2 / 5 / 10 / 20 GB or custom
-  values (`5 GB`, `500 MB`), presented as a plan budget: once armed, the
-  menu and home window show the remainder ("剩 X · 已用 Y%" = X left · Y%
+- **Traffic alerts** — based on the **merged total of all modules'
+  cumulative upload + download**; thresholds off / 1 / 2 / 5 / 10 / 20 GB or
+  custom values (`5 GB`, `500 MB`), presented as a plan budget: once armed,
+  the menu and home window show the remainder ("剩 X · 已用 Y%" = X left · Y%
   used). On crossing: a soft chime plus a system notification (in-app
-  dialog if notifications are not authorized) and the strip turns red.
+  dialog if notifications are not authorized) and the ring turns red.
   Fires once per threshold and re-arms on reset or change
-- **Home window (⌘0)** — interface cards (name, live rates, totals, reset)
-  and a rolling 120-second upload/download rate graph that adapts to light
-  and dark mode
+- **Home window (⌘0)** — interface cards on the left (name, live rates,
+  totals, reset) and a **merged-total ring gauge** on the right (ring =
+  alert progress: plain when unset / orange arc while armed / red when
+  fired), plus a rolling 120-second upload/download rate graph that adapts
+  to light and dark mode
 - **Auto-update** — detects new releases via GitHub Releases (automatic
   check after launch and every 6 hours). A new version triggers a system
   notification plus a "Software Update" card in the home window; the app
@@ -100,7 +103,7 @@ Or run the build product directly:
 
 | Environment variable | Effect |
 |---|---|
-| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; currently 204 checks) |
+| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; check count varies slightly with network conditions, ~200+ checks) |
 | `TRAFFICMONITOR_SHOWHOME=1` | Open the home window immediately on launch |
 | `TRAFFICMONITOR_ALERT_MB=1` | Pre-set a 1 MB alert threshold for verifying the alert path |
 | `TRAFFICMONITOR_AUTOUPDATE=1` | Auto-download when a new version is found and skip the confirm dialog (for verifying the update path) |

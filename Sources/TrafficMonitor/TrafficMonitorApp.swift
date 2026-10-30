@@ -173,10 +173,10 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     /// 预设档位（菜单展示与勾选判定共用）
     static let alertPresets: [(label: String, bytes: UInt64?)] = [
         ("关闭", nil),
-        ("100 MB", 100 * MenuBarController.megabyte),
         ("500 MB", 500 * MenuBarController.megabyte),
         ("1 GB", 1 * MenuBarController.gigabyte),
         ("2 GB", 2 * MenuBarController.gigabyte),
+        ("3 GB", 3 * MenuBarController.gigabyte),
         ("5 GB", 5 * MenuBarController.gigabyte),
         ("10 GB", 10 * MenuBarController.gigabyte),
         ("20 GB", 20 * MenuBarController.gigabyte),
@@ -187,7 +187,8 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         let submenu = NSMenu()
         submenu.autoenablesItems = false
 
-        let caption = NSMenuItem(title: "总流量达到阈值时提醒一次", action: nil, keyEquivalent: "")
+        let caption = NSMenuItem(title: "按所有模块累计上行 + 下行的合并流量提醒一次",
+                                 action: nil, keyEquivalent: "")
         caption.isEnabled = false
         caption.attributedTitle = NSAttributedString(string: caption.title, attributes: [
             .font: NSFont.systemFont(ofSize: 11),
@@ -249,7 +250,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     @objc private func showCustomAlertThreshold() {
         let dialog = NSAlert()
         dialog.messageText = "自定义流量告警阈值"
-        dialog.informativeText = "输入达到时提醒的总流量（上行+下行），示例：5 GB、500 MB。\n设置后提醒进度将重新计算，已触发的提醒状态会被清除。"
+        dialog.informativeText = "输入达到时提醒的合并流量（所有模块累计上行 + 下行）。示例：5 GB、500 MB。\n设置后提醒进度将重新计算，已触发的提醒状态会被清除。"
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
         input.placeholderString = "5 GB"
         dialog.accessoryView = input
@@ -407,10 +408,10 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             elapsedSeconds: Int(Date().timeIntervalSince(sessionStart)))
         wifiItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.wifi.displayName,
-            rx: store.wifi.rx, tx: store.wifi.tx, rate: monitor.wifiRate)
+            rx: store.wifi.rx, tx: store.wifi.tx)
         iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.iphone.displayName,
-            rx: store.iphone.rx, tx: store.iphone.tx, rate: monitor.iphoneRate)
+            rx: store.iphone.rx, tx: store.iphone.tx)
         let totalBytesForAlert = currentMeteredTotal()
         let alertProgress = alert.progress(totalBytes: totalBytesForAlert)
         let strip = HomePageController.alertStrip(threshold: alert.threshold,
@@ -425,10 +426,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         alertItem.attributedTitle = MenuTextBuilder.alertHeader(
             armed: alert.threshold != nil, fired: alert.fired, detail: detail)
         checkUpdateItem.title = UpdatePresentation.menuCheckTitle(for: updateService.state)
-    }
-
-    private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {
-        "\(name)  ↑\(ByteFormat.string(tx)) ↓\(ByteFormat.string(rx))   \(ByteFormat.rate(rate.rx + rate.tx))"
     }
 }
 

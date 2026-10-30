@@ -23,4 +23,11 @@ enum ByteFormat {
         guard let space = text.firstIndex(of: " ") else { return (text, "") }
         return (String(text[..<space]), String(text[text.index(after: space)...]))
     }
+
+    /// 拆分字节文本为数值与单位（大字号混排用），如 10_400_000_000 -> ("10.4", "GB")
+    static func stringParts(_ bytes: UInt64) -> (value: String, unit: String) {
+        let text = string(bytes)
+        guard let space = text.firstIndex(of: " ") else { return (text, "") }
+        return (String(text[..<space]), String(text[text.index(after: space)...]))
+    }
 }
