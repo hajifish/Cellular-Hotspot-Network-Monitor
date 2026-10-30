@@ -16,7 +16,7 @@ enum HomePageTests {
 
     static func alertStripFormatting() {
         let unset = HomePageController.alertStrip(threshold: nil, fired: false, progressBytes: 100)
-        TestRun.expectEqual(unset.text, "未设置", "unset text")
+        TestRun.expectEqual(unset.text, "告警未设置", "unset text")
         TestRun.expect(unset.state == .unset, "unset state")
 
         let armed = HomePageController.alertStrip(threshold: 1_000, fired: false, progressBytes: 250)

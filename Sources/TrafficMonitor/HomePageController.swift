@@ -1,6 +1,6 @@
 import AppKit
 
-/// 主页窗口：深色玻璃仪表盘，接口卡片（含独立重置与独立计时）+ 会话/告警汇总条 + 120 秒滚动速率图
+/// 主页窗口：深色玻璃仪表盘，左列（汇总条 + 接口卡片堆叠）+ 右侧合并总流量圆环（环=告警进度）+ 120 秒滚动速率图
 @MainActor
 final class HomePageController {
     /// 告警汇总的展示状态
@@ -17,10 +17,11 @@ final class HomePageController {
     private let updateService: UpdateService
     private let window: NSWindow
     private let graphView = RateGraphView()
+    private let ringView = RingGaugeView()
     private var cards: [InterfaceCategory: (rate: NSTextField, total: NSTextField, title: NSTextField, meta: NSTextField)] = [:]
     private var summaryValues: [NSTextField] = []
-    private var alertValueLabel: NSTextField!
     private var legendLabel: NSTextField!
+    private var ringStatusLabel: NSTextField!
     private var ratesToggle: NSButton!
     private var ratesLabel: NSTextField!
     private var totalsToggle: NSButton!
@@ -43,7 +44,7 @@ final class HomePageController {
     init(monitor: TrafficMonitor, updateService: UpdateService) {
         self.monitor = monitor
         self.updateService = updateService
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 428),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 470),
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
@@ -76,7 +77,7 @@ final class HomePageController {
     /// 未设置 → 白色；已设置 → 橙色倒计时（剩余量 + 已用百分比）；已触发 → 红色
     nonisolated static func alertStrip(threshold: UInt64?, fired: Bool,
                                        progressBytes: UInt64) -> (text: String, state: AlertStripState) {
-        guard let threshold, threshold > 0 else { return ("未设置", .unset) }
+        guard let threshold, threshold > 0 else { return ("告警未设置", .unset) }
         if fired {
             return ("已触发 · 已用 100%", .fired)
         }
@@ -88,7 +89,7 @@ final class HomePageController {
     // MARK: - UI 构建
 
     private func buildUI() {
-        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 428))
+        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 470))
         visual.material = .hudWindow
         visual.blendingMode = .behindWindow
         visual.state = .active
@@ -97,103 +98,114 @@ final class HomePageController {
 
         // 顶部右侧：状态栏显示开关（累计流量在前、实时速率在后；都关 = 状态栏只显示图标）
         totalsToggle = sphereToggle(action: #selector(toggleTotals))
-        totalsToggle.frame = NSRect(x: 538, y: 384, width: 18, height: 18)
+        totalsToggle.frame = NSRect(x: 538, y: 426, width: 18, height: 18)
         content.addSubview(totalsToggle)
         totalsLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
         totalsLabel.stringValue = "累计流量"
-        totalsLabel.frame = NSRect(x: 560, y: 386, width: 56, height: 16)
+        totalsLabel.frame = NSRect(x: 560, y: 428, width: 56, height: 16)
         content.addSubview(totalsLabel)
         ratesToggle = sphereToggle(action: #selector(toggleRates))
-        ratesToggle.frame = NSRect(x: 628, y: 384, width: 18, height: 18)
+        ratesToggle.frame = NSRect(x: 628, y: 426, width: 18, height: 18)
         content.addSubview(ratesToggle)
         ratesLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
         ratesLabel.stringValue = "实时速率"
-        ratesLabel.frame = NSRect(x: 650, y: 386, width: 56, height: 16)
+        ratesLabel.frame = NSRect(x: 650, y: 428, width: 56, height: 16)
         content.addSubview(ratesLabel)
         refreshToggles()
         updateBaseViews.append(contentsOf: [totalsToggle, totalsLabel, ratesToggle, ratesLabel])
 
-        // 接口卡片（右上角独立重置；每卡展示自己的开始时间与已运行时长）
-        let cardSpecs: [(InterfaceCategory, CGFloat)] = [
-            (.wifi, 24),
-            (.iphone, 376),
+        // 左列汇总条：会话、总上传、总下载（流量告警移至右侧圆环面板）
+        let strip = roundedCard(frame: NSRect(x: 24, y: 368, width: 456, height: 46))
+        content.addSubview(strip)
+        updateBaseViews.append(strip)
+        let summarySpecs: [(String, CGFloat)] = [
+            ("会话", 18), ("总上传", 150), ("总下载", 280),
         ]
-        for (category, x) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 320, height: 126))
+        for (caption, x) in summarySpecs {
+            let captionLabel = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
+            captionLabel.stringValue = caption
+            captionLabel.frame = NSRect(x: x, y: 26, width: 120, height: 12)
+            strip.contentView?.addSubview(captionLabel)
+            let value = makeLabel(size: 12, color: .labelColor, weight: .semibold)
+            value.frame = NSRect(x: x, y: 6, width: 120, height: 18)
+            value.lineBreakMode = .byClipping
+            strip.contentView?.addSubview(value)
+            summaryValues.append(value)
+        }
+
+        // 左列接口卡片：上下堆叠；每卡两行——上行「标题 + 开始信息 + 重置」，下行「速率 + 累计」
+        let cardSpecs: [(InterfaceCategory, CGFloat)] = [
+            (.wifi, 274),
+            (.iphone, 180),
+        ]
+        for (category, y) in cardSpecs {
+            let card = roundedCard(frame: NSRect(x: 24, y: y, width: 456, height: 86))
             content.addSubview(card)
             updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 18, y: 94, width: 200, height: 18)
+            title.frame = NSRect(x: 18, y: 56, width: 240, height: 18)
+            let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
+            meta.frame = NSRect(x: 258, y: 58, width: 160, height: 16)
+            meta.alignment = .right
             if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
                                        accessibilityDescription: "重置计量") {
                 let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
                 reset.isBordered = false
                 reset.contentTintColor = .secondaryLabelColor
-                reset.setFrameOrigin(NSPoint(x: 320 - 34, y: 92))
+                reset.setFrameOrigin(NSPoint(x: 456 - 34, y: 54))
                 reset.toolTip = "重置计量"
                 reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
                 card.contentView?.addSubview(reset)
             }
-
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
-            rate.frame = NSRect(x: 18, y: 52, width: 284, height: 34)
+            rate.frame = NSRect(x: 18, y: 12, width: 280, height: 40)
             let total = makeLabel(size: 12, color: .secondaryLabelColor, weight: .regular)
-            total.frame = NSRect(x: 18, y: 30, width: 284, height: 20)
-            let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-            meta.frame = NSRect(x: 18, y: 8, width: 284, height: 16)
+            total.frame = NSRect(x: 298, y: 26, width: 140, height: 20)
+            total.alignment = .right
+            total.lineBreakMode = .byClipping
             for label in [title, rate, total, meta] {
                 card.contentView?.addSubview(label)
             }
             cards[category] = (rate, total, title, meta)
         }
 
-        // 会话/告警汇总条：会话、总上传、总下载 + 状态着色的放大告警项
-        let strip = roundedCard(frame: NSRect(x: 24, y: 322, width: 672, height: 48))
-        content.addSubview(strip)
-        updateBaseViews.append(strip)
-        let summarySpecs: [(String, CGFloat)] = [
-            ("会话", 18), ("总上传", 170), ("总下载", 320),
-        ]
-        for (caption, x) in summarySpecs {
-            let captionLabel = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
-            captionLabel.stringValue = caption
-            captionLabel.frame = NSRect(x: x, y: 28, width: 130, height: 12)
-            strip.contentView?.addSubview(captionLabel)
-            let value = makeLabel(size: 12, color: .labelColor, weight: .semibold)
-            value.frame = NSRect(x: x, y: 8, width: 130, height: 18)
-            value.lineBreakMode = .byClipping
-            strip.contentView?.addSubview(value)
-            summaryValues.append(value)
-        }
-        let alertCaption = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
-        alertCaption.stringValue = "流量告警"
-        alertCaption.frame = NSRect(x: 470, y: 28, width: 180, height: 12)
-        strip.contentView?.addSubview(alertCaption)
-        alertValueLabel = makeLabel(size: 14, color: .white, weight: .bold)
-        alertValueLabel.frame = NSRect(x: 470, y: 6, width: 190, height: 22)
-        alertValueLabel.lineBreakMode = .byClipping
-        strip.contentView?.addSubview(alertValueLabel)
+        // 右列：合并总流量圆环面板（环 = 告警进度，环心 = 全局合并总量，与告警同口径）
+        let ringPanel = roundedCard(frame: NSRect(x: 492, y: 180, width: 204, height: 234))
+        content.addSubview(ringPanel)
+        updateBaseViews.append(ringPanel)
+        ringView.frame = NSRect(x: 37, y: 62, width: 130, height: 130)
+        ringPanel.contentView?.addSubview(ringView)
+        let ringCaption = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
+        ringCaption.stringValue = "合并总流量"
+        ringCaption.frame = NSRect(x: 0, y: 44, width: 204, height: 14)
+        ringCaption.alignment = .center
+        ringPanel.contentView?.addSubview(ringCaption)
+        ringStatusLabel = makeLabel(size: 12, color: .white, weight: .semibold)
+        ringStatusLabel.frame = NSRect(x: 10, y: 16, width: 184, height: 18)
+        ringStatusLabel.alignment = .center
+        ringStatusLabel.lineBreakMode = .byClipping
+        ringPanel.contentView?.addSubview(ringStatusLabel)
 
         let sectionLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .medium)
         sectionLabel.stringValue = "实时速率 · 近 120 秒"
-        sectionLabel.frame = NSRect(x: 24, y: 148, width: 672, height: 16)
+        sectionLabel.frame = NSRect(x: 24, y: 154, width: 672, height: 16)
         content.addSubview(sectionLabel)
         updateBaseViews.append(sectionLabel)
 
-        graphView.frame = NSRect(x: 24, y: 36, width: 672, height: 106)
+        graphView.frame = NSRect(x: 24, y: 40, width: 672, height: 106)
         content.addSubview(graphView)
         updateBaseViews.append(graphView)
 
         legendLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
-        legendLabel.frame = NSRect(x: 24, y: 12, width: 672, height: 18)
+        legendLabel.frame = NSRect(x: 24, y: 16, width: 672, height: 18)
         content.addSubview(legendLabel)
         updateBaseViews.append(legendLabel)
         updateLegend()
 
         // 图例行右端的当前版本号小字（无更新时的唯一展示）
         updateVersionLabel = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-        updateVersionLabel.frame = NSRect(x: 520, y: 14, width: 176, height: 14)
+        updateVersionLabel.frame = NSRect(x: 520, y: 18, width: 176, height: 14)
         updateVersionLabel.alignment = .right
         updateVersionLabel.stringValue = "v\(AppVersion.current)"
         content.addSubview(updateVersionLabel)
@@ -484,7 +496,7 @@ final class HomePageController {
             labels.total.stringValue = "累计  ↑ \(ByteFormat.string(usage.tx))    ↓ \(ByteFormat.string(usage.rx))"
         }
 
-        // 会话/告警汇总条
+        // 会话/告警汇总
         let sessionStart = store.sessionStart
         let totalRX = store.wifi.rx + store.iphone.rx
         let totalTX = store.wifi.tx + store.iphone.tx
@@ -494,14 +506,24 @@ final class HomePageController {
         summaryValues[1].stringValue = "↑ \(ByteFormat.string(totalTX))"
         summaryValues[2].stringValue = "↓ \(ByteFormat.string(totalRX))"
 
+        // 合并总流量圆环：环 = 告警进度，环心 = 全局合并总量（与告警同口径）
         let alertState = alertStateProvider?()
-        let strip = Self.alertStrip(threshold: alertState?.threshold, fired: alertState?.fired ?? false,
-                                    progressBytes: alertState?.progressBytes ?? 0)
-        alertValueLabel.stringValue = strip.text
+        let fired = alertState?.fired ?? false
+        let progressBytes = alertState?.progressBytes ?? 0
+        let mergedParts = ByteFormat.stringParts(totalRX + totalTX)
+        ringView.centerValue = mergedParts.value
+        ringView.centerUnit = mergedParts.unit
+        ringView.arcFraction = RingGaugeView.arcFraction(threshold: alertState?.threshold,
+                                                         fired: fired,
+                                                         progressBytes: progressBytes)
+        ringView.fired = fired
+        let strip = Self.alertStrip(threshold: alertState?.threshold, fired: fired,
+                                    progressBytes: progressBytes)
+        ringStatusLabel.stringValue = strip.text
         switch strip.state {
-        case .unset: alertValueLabel.textColor = .white
-        case .armed: alertValueLabel.textColor = .systemOrange
-        case .fired: alertValueLabel.textColor = .systemRed
+        case .unset: ringStatusLabel.textColor = .white
+        case .armed: ringStatusLabel.textColor = .systemOrange
+        case .fired: ringStatusLabel.textColor = .systemRed
         }
 
         graphView.history = monitor.history

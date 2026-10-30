@@ -37,7 +37,7 @@ final class RateGraphView: NSView {
         let samples = history.samples
         let maxRate = Self.niceMaximum(samples.map { max($0.rx, $0.tx) }.max() ?? 1)
 
-        // 退隐网格：3 条水平细线 + 左上量程标注（文字用文本色，不用序列色）
+        // 退隐网格：3 条水平细线
         NSColor.white.withAlphaComponent(0.08).setStroke()
         let grid = NSBezierPath()
         for fraction in [0.0, 0.5, 1.0] {
@@ -47,7 +47,6 @@ final class RateGraphView: NSView {
         }
         grid.lineWidth = 0.5
         grid.stroke()
-        drawCaption(ByteFormat.rate(maxRate), at: NSPoint(x: plot.minX, y: plot.maxY + 1))
 
         guard samples.count >= 2 else { return }
         let stepX = plot.width / CGFloat(history.capacity - 1)
@@ -84,13 +83,6 @@ final class RateGraphView: NSView {
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
         path.stroke()
-    }
-
-    private func drawCaption(_ text: String, at point: NSPoint) {
-        (text as NSString).draw(at: point, withAttributes: [
-            .font: NSFont.systemFont(ofSize: 9),
-            .foregroundColor: NSColor.tertiaryLabelColor,
-        ])
     }
 
     private func drawEndLabel(_ text: String, near end: NSPoint, above: Bool) {
