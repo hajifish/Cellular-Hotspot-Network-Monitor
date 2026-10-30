@@ -31,10 +31,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     private var iphoneItem: NSMenuItem!
     private var alertMenu: NSMenu!
     private var alertItem: NSMenuItem!
-    private var updateInfoItem: NSMenuItem!
-    private var updatePrimaryItem: NSMenuItem!
-    private var updateSecondaryItem: NSMenuItem!
-    private var autoCheckItem: NSMenuItem!
     private var milestoneTracker = MilestoneTracker()
     private var changeObserverID: UUID?
 
@@ -82,19 +78,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         menu.addItem(openHome)
         menu.addItem(alertItem)
         menu.addItem(.separator())
-        updateInfoItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        updatePrimaryItem = NSMenuItem(title: "", action: #selector(updatePrimaryAction), keyEquivalent: "")
-        updatePrimaryItem.target = self
-        updateSecondaryItem = NSMenuItem(title: "", action: #selector(updateSecondaryAction), keyEquivalent: "")
-        updateSecondaryItem.target = self
-        autoCheckItem = NSMenuItem(title: "自动检查更新", action: #selector(toggleAutoCheck), keyEquivalent: "")
-        autoCheckItem.target = self
-        autoCheckItem.state = UpdateService.autoCheckEnabled ? .on : .off
-        menu.addItem(updateInfoItem)
-        menu.addItem(updatePrimaryItem)
-        menu.addItem(updateSecondaryItem)
-        menu.addItem(autoCheckItem)
-        menu.addItem(.separator())
         menu.addItem(quit)
 
         statusItem.menu = menu
@@ -120,7 +103,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
                     progressBytes: self.alert.progress(totalBytes: total))
         }
         updateService.onStateChange = { [weak self] in
-            self?.refreshUpdateItems()
             self?.homeController.refreshUpdateCard()
         }
         updateService.confirmRestartHandler = { [weak self] release, completion in
@@ -379,51 +361,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         }
     }
 
-    // MARK: - 软件更新
-
-    private func refreshUpdateItems() {
-        let content = UpdatePresentation.menuContent(for: updateService.state,
-                                                     currentVersion: AppVersion.current)
-        updateInfoItem.attributedTitle = NSAttributedString(string: content.info, attributes: [
-            .font: NSFont.systemFont(ofSize: 12, weight: content.infoBold ? .semibold : .regular),
-            .foregroundColor: content.infoBold ? NSColor.labelColor : NSColor.secondaryLabelColor,
-        ])
-        updateInfoItem.isEnabled = false
-        updatePrimaryItem.title = content.primary ?? ""
-        updatePrimaryItem.isHidden = content.primary == nil
-        updatePrimaryItem.isEnabled = content.primaryEnabled
-        updateSecondaryItem.title = content.secondary ?? ""
-        updateSecondaryItem.isHidden = content.secondary == nil
-        updateSecondaryItem.isEnabled = true
-    }
-
-    @objc private func updatePrimaryAction() {
-        switch updateService.state {
-        case .available: updateService.startDownload()
-        case .downloaded: updateService.installNow()
-        default: updateService.checkNow() // idle / upToDate / failed
-        }
-    }
-
-    @objc private func updateSecondaryAction() {
-        switch updateService.state {
-        case .available(let release): openRelease(release)
-        case .downloaded: updateService.cancelStagedUpdate()
-        case .downloading: updateService.cancelDownload()
-        default: break
-        }
-    }
-
-    private func openRelease(_ release: ReleaseInfo) {
-        guard let url = URL(string: release.htmlUrl) else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    @objc private func toggleAutoCheck() {
-        UpdateService.autoCheckEnabled.toggle()
-        autoCheckItem.state = UpdateService.autoCheckEnabled ? .on : .off
-        updateService.applyAutoCheckPref()
-    }
+    // MARK: - 软件更新（主页卡片是唯一更新入口，菜单栏不展示更新内容）
 
     /// 下载完成后的确认弹窗（用户决策：确认后才换包重启）
     private func showRestartConfirm(release: ReleaseInfo, completion: @escaping (Bool) -> Void) {
