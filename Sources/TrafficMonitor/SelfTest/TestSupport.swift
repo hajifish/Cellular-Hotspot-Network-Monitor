@@ -19,6 +19,18 @@ enum TestRun {
         expect(actual == expected, "\(label): got \(actual), want \(expected)", file: file, line: line)
     }
 
+    static func expectError<T>(_ expression: @autoclosure () throws -> T,
+                               equals expected: Error, _ label: String,
+                               file: StaticString = #fileID, line: UInt = #line) {
+        do {
+            try expression()
+            expect(false, "\(label): 期望抛错但没有", file: file, line: line)
+        } catch {
+            expect(String(describing: error) == String(describing: expected),
+                   "\(label): got \(error), want \(expected)", file: file, line: line)
+        }
+    }
+
     static func suite(_ name: String, _ body: () -> Void) {
         let before = failures
         print("── \(name)")
@@ -51,6 +63,11 @@ enum SelfTest {
         TestRun.suite("MilestoneTracker") { MilestoneTrackerTests.all() }
         TestRun.suite("StatusBarFormatter") { StatusBarFormatterTests.all() }
         TestRun.suite("MenuTextBuilder") { MenuTextBuilderTests.all() }
+        TestRun.suite("UpdateModels") { UpdateModelsTests.all() }
+        TestRun.suite("UpdateChecker") { UpdateCheckerTests.all() }
+        TestRun.suite("UpdateInstaller") { UpdateInstallerTests.all() }
+        TestRun.suite("UpdateService") { UpdateServiceTests.all() }
+        TestRun.suite("UpdatePresentation") { UpdatePresentationTests.all() }
         TestRun.finish()
     }
 }

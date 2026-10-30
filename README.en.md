@@ -56,7 +56,14 @@
 - **Home window (⌘0)** — interface cards (name, live rates, totals, reset)
   and a rolling 120-second upload/download rate graph that adapts to light
   and dark mode
-- **No network access of its own** — it only reads kernel interface counters
+- **Auto-update** — detects new releases via GitHub Releases (automatic
+  check after launch and every 6 hours; manual check and an auto-check
+  toggle in the menu). A new version triggers a system notification plus
+  menu/home reminders; the app downloads it with progress, verifies it,
+  and swaps itself on your confirmation — rolling back automatically if
+  the swap fails
+- **No network access of its own** — it only reads kernel interface
+  counters; GitHub is contacted only to check for and download updates
 
 ## Requirements
 
@@ -94,9 +101,10 @@ Or run the build product directly:
 
 | Environment variable | Effect |
 |---|---|
-| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; currently 99 checks) |
+| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; currently 204 checks) |
 | `TRAFFICMONITOR_SHOWHOME=1` | Open the home window immediately on launch |
 | `TRAFFICMONITOR_ALERT_MB=1` | Pre-set a 1 MB alert threshold for verifying the alert path |
+| `TRAFFICMONITOR_AUTOUPDATE=1` | Auto-download when a new version is found and skip the confirm dialog (for verifying the update path) |
 
 ## How it works
 

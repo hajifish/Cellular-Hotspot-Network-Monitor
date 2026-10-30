@@ -14,13 +14,14 @@ struct Main {
 }
 
 @MainActor
-final class MenuBarController: NSObject, NSMenuDelegate {
+final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCenterDelegate {
     static let gigabyte: UInt64 = 1_000_000_000
     static let megabyte: UInt64 = 1_000_000
     static let alertDefaultsKey = "alertThresholdBytes"
     static private(set) var shared: MenuBarController!
 
     private let monitor = TrafficMonitor()
+    private let updateService: UpdateService
     private let homeController: HomePageController
     private let alert = TrafficAlert()
     private let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "alert")
@@ -43,7 +44,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     override init() {
-        homeController = HomePageController(monitor: monitor)
+        updateService = UpdateService()
+        homeController = HomePageController(monitor: monitor, updateService: updateService)
         super.init()
         restoreAlertThreshold()
         StatusBarPrefs.migrateLegacyMode()
@@ -100,6 +102,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     fired: self.alert.fired,
                     progressBytes: self.alert.progress(totalBytes: total))
         }
+        updateService.onStateChange = { [weak self] in
+            self?.homeController.refreshUpdateCard()
+        }
+        updateService.confirmRestartHandler = { [weak self] release, completion in
+            self?.showRestartConfirm(release: release, completion: completion)
+        }
+        UNUserNotificationCenter.current().delegate = self
+        updateService.startAutomaticChecks()
         monitor.start()
         refresh()
         // 诊断/验证用：启动即打开主页
@@ -351,6 +361,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
+    // MARK: - 软件更新（主页卡片是唯一更新入口，菜单栏不展示更新内容）
+
+    /// 下载完成后的确认弹窗（用户决策：确认后才换包重启）
+    private func showRestartConfirm(release: ReleaseInfo, completion: @escaping (Bool) -> Void) {
+        let dialog = NSAlert()
+        dialog.messageText = "更新已就绪"
+        dialog.informativeText = "新版本 \(release.tagName) 已下载并校验完成。立即重启以完成更新？"
+        dialog.addButton(withTitle: "立即重启")
+        dialog.addButton(withTitle: "稍后")
+        NSApp.activate(ignoringOtherApps: true)
+        completion(dialog.runModal() == .alertFirstButtonReturn)
+    }
+
     @objc private func openHome() {
         homeController.show()
     }
@@ -391,5 +414,24 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {
         "\(name)  ↑\(ByteFormat.string(tx)) ↓\(ByteFormat.string(rx))   \(ByteFormat.rate(rate.rx + rate.tx))"
+    }
+}
+
+extension MenuBarController {
+    /// 点击更新通知 → 打开主页更新卡片
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.notification.request.identifier.hasPrefix("update-") {
+            openHome()
+        }
+        completionHandler()
+    }
+
+    /// 应用前台时通知横幅也显示（对既有告警/里程碑通知同为改善）
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
     }
 }

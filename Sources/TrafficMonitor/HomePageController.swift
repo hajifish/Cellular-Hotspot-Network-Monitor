@@ -14,6 +14,7 @@ final class HomePageController {
     var alertStateProvider: (() -> (threshold: UInt64?, fired: Bool, progressBytes: UInt64))?
 
     private let monitor: TrafficMonitor
+    private let updateService: UpdateService
     private let window: NSWindow
     private let graphView = RateGraphView()
     private var cards: [InterfaceCategory: (rate: NSTextField, total: NSTextField, title: NSTextField, meta: NSTextField)] = [:]
@@ -24,13 +25,24 @@ final class HomePageController {
     private var ratesLabel: NSTextField!
     private var totalsToggle: NSButton!
     private var totalsLabel: NSTextField!
+    private var updateStatusLabel: NSTextField!
+    private var updateNotesLabel: NSTextField!
+    private var updatePrimaryButton: NSButton!
+    private var updateSecondaryButton: NSButton!
+    private var updateProgress: NSProgressIndicator!
+    private var updateCardBox: NSBox!
+    private var updateVersionLabel: NSTextField!
+    /// 收起/展开卡片时需要整体平移的基础视图（图例、图表、卡片等）
+    private var updateBaseViews: [NSView] = []
+    private var updateCardVisible = false
     private var observerID: UUID?
 
     static let downloadAccent = RateGraphView.downloadColor
     static let uploadAccent = RateGraphView.uploadColor
 
-    init(monitor: TrafficMonitor) {
+    init(monitor: TrafficMonitor, updateService: UpdateService) {
         self.monitor = monitor
+        self.updateService = updateService
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 428),
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
@@ -99,6 +111,7 @@ final class HomePageController {
         ratesLabel.frame = NSRect(x: 650, y: 386, width: 56, height: 16)
         content.addSubview(ratesLabel)
         refreshToggles()
+        updateBaseViews.append(contentsOf: [totalsToggle, totalsLabel, ratesToggle, ratesLabel])
 
         // 接口卡片（右上角独立重置；每卡展示自己的开始时间与已运行时长）
         let cardSpecs: [(InterfaceCategory, CGFloat)] = [
@@ -108,6 +121,7 @@ final class HomePageController {
         for (category, x) in cardSpecs {
             let card = roundedCard(frame: NSRect(x: x, y: 180, width: 320, height: 126))
             content.addSubview(card)
+            updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
             title.frame = NSRect(x: 18, y: 94, width: 200, height: 18)
@@ -137,6 +151,7 @@ final class HomePageController {
         // 会话/告警汇总条：会话、总上传、总下载 + 状态着色的放大告警项
         let strip = roundedCard(frame: NSRect(x: 24, y: 322, width: 672, height: 48))
         content.addSubview(strip)
+        updateBaseViews.append(strip)
         let summarySpecs: [(String, CGFloat)] = [
             ("会话", 18), ("总上传", 170), ("总下载", 320),
         ]
@@ -164,14 +179,58 @@ final class HomePageController {
         sectionLabel.stringValue = "实时速率 · 近 120 秒"
         sectionLabel.frame = NSRect(x: 24, y: 148, width: 672, height: 16)
         content.addSubview(sectionLabel)
+        updateBaseViews.append(sectionLabel)
 
         graphView.frame = NSRect(x: 24, y: 36, width: 672, height: 106)
         content.addSubview(graphView)
+        updateBaseViews.append(graphView)
 
         legendLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
         legendLabel.frame = NSRect(x: 24, y: 12, width: 672, height: 18)
         content.addSubview(legendLabel)
+        updateBaseViews.append(legendLabel)
         updateLegend()
+
+        // 图例行右端的当前版本号小字（无更新时的唯一展示）
+        updateVersionLabel = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
+        updateVersionLabel.frame = NSRect(x: 520, y: 14, width: 176, height: 14)
+        updateVersionLabel.alignment = .right
+        updateVersionLabel.stringValue = "v\(AppVersion.current)"
+        content.addSubview(updateVersionLabel)
+
+        // 软件更新卡片：仅在有更新进行时展开（默认隐藏）
+        let updateCard = roundedCard(frame: NSRect(x: 24, y: 8, width: 672, height: 76))
+        content.addSubview(updateCard)
+        updateCardBox = updateCard
+        updateCardBox.isHidden = true
+        let updateCaption = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
+        updateCaption.stringValue = "软件更新"
+        updateCaption.frame = NSRect(x: 18, y: 56, width: 200, height: 12)
+        updateCard.contentView?.addSubview(updateCaption)
+        updateStatusLabel = makeLabel(size: 12, color: .labelColor, weight: .semibold)
+        updateStatusLabel.frame = NSRect(x: 18, y: 30, width: 390, height: 20)
+        updateStatusLabel.lineBreakMode = .byClipping
+        updateCard.contentView?.addSubview(updateStatusLabel)
+        updateNotesLabel = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
+        updateNotesLabel.frame = NSRect(x: 18, y: 8, width: 390, height: 20)
+        updateNotesLabel.lineBreakMode = .byTruncatingTail
+        updateCard.contentView?.addSubview(updateNotesLabel)
+        updatePrimaryButton = NSButton(title: "检查更新", target: self, action: #selector(updatePrimaryAction))
+        updatePrimaryButton.frame = NSRect(x: 420, y: 24, width: 118, height: 28)
+        updatePrimaryButton.bezelStyle = .rounded
+        updateCard.contentView?.addSubview(updatePrimaryButton)
+        updateSecondaryButton = NSButton(title: "", target: self, action: #selector(updateSecondaryAction))
+        updateSecondaryButton.frame = NSRect(x: 546, y: 24, width: 110, height: 28)
+        updateSecondaryButton.bezelStyle = .rounded
+        updateSecondaryButton.isHidden = true
+        updateCard.contentView?.addSubview(updateSecondaryButton)
+        updateProgress = NSProgressIndicator(frame: NSRect(x: 420, y: 10, width: 236, height: 8))
+        updateProgress.isIndeterminate = false
+        updateProgress.minValue = 0
+        updateProgress.maxValue = 1
+        updateProgress.isHidden = true
+        updateCard.contentView?.addSubview(updateProgress)
+        refreshUpdateCard()
     }
 
     private func roundedCard(frame: NSRect) -> NSBox {
@@ -250,6 +309,82 @@ final class HomePageController {
         NSApp.activate(ignoringOtherApps: true)
         guard dialog.runModal() == .alertFirstButtonReturn else { return }
         monitor.reset(category)
+    }
+
+    // MARK: - 软件更新卡片
+
+    /// 服务状态变化与每秒刷新共用；只有真正有更新进行时才展开卡片框架，
+    /// 否则窗口保持原高，仅图例行右端展示当前版本号小字
+    func refreshUpdateCard() {
+        updateVersionLabel.stringValue = "v\(AppVersion.current)"
+        setUpdateCardVisible(UpdatePresentation.wantsCard(for: updateService.state))
+        guard updateCardVisible else { return }
+        let content = UpdatePresentation.cardContent(for: updateService.state,
+                                                     currentVersion: AppVersion.current,
+                                                     lastCheck: updateService.lastCheckDate,
+                                                     errorText: updateService.lastError)
+        updateStatusLabel.stringValue = content.status
+        updateStatusLabel.textColor = color(for: content.kind)
+        updateNotesLabel.stringValue = content.notes
+        if case .downloading(let progress) = updateService.state {
+            updateProgress.isHidden = false
+            updateProgress.doubleValue = progress
+        } else {
+            updateProgress.isHidden = true
+        }
+        updatePrimaryButton.title = content.primary ?? ""
+        updatePrimaryButton.isHidden = content.primary == nil
+        updateSecondaryButton.title = content.secondary ?? ""
+        updateSecondaryButton.isHidden = content.secondary == nil
+    }
+
+    /// 展开卡片时窗口向下扩 84pt（顶边不动），基础视图整体上移让出底部空间；
+    /// 收起时反向还原
+    private func setUpdateCardVisible(_ visible: Bool) {
+        guard updateCardVisible != visible else { return }
+        updateCardVisible = visible
+        let dy: CGFloat = visible ? 84 : -84
+        for view in updateBaseViews {
+            view.frame.origin.y += dy
+        }
+        updateCardBox.isHidden = !visible
+        updateVersionLabel.isHidden = visible
+        var frame = window.frame
+        if visible {
+            frame.origin.y -= 84
+            frame.size.height += 84
+        } else {
+            frame.origin.y += 84
+            frame.size.height -= 84
+        }
+        window.setFrame(frame, display: true)
+    }
+
+    private func color(for kind: UpdatePresentation.CardKind) -> NSColor {
+        switch kind {
+        case .neutral: return .labelColor
+        case .ok: return .systemGreen
+        case .attention: return .systemOrange
+        case .error: return .systemRed
+        }
+    }
+
+    @objc private func updatePrimaryAction() {
+        switch updateService.state {
+        case .available: updateService.startDownload()
+        case .downloaded: updateService.installNow()
+        default: updateService.checkNow()
+        }
+    }
+
+    @objc private func updateSecondaryAction() {
+        switch updateService.state {
+        case .available(let release):
+            if let url = URL(string: release.htmlUrl) { NSWorkspace.shared.open(url) }
+        case .downloaded: updateService.cancelStagedUpdate()
+        case .downloading: updateService.cancelDownload()
+        default: break
+        }
     }
 
     /// 卡片速率行：彩色箭头 + 等宽数字 + 缩小单位
@@ -372,6 +507,8 @@ final class HomePageController {
         graphView.history = monitor.history
         graphView.downloadLabel = "↓\(ByteFormat.rate(total.rx))"
         graphView.uploadLabel = "↑\(ByteFormat.rate(total.tx))"
+
+        refreshUpdateCard()
     }
 
     /// 模块运行中 = 接口在线且已有计量流量（纯函数，可测）
