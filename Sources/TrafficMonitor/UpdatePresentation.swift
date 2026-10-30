@@ -12,6 +12,19 @@ enum UpdatePresentation {
         }
     }
 
+    /// 菜单「检查更新」条目文字：检测到新版本（手动点击或自动检测）时追加「有新版本」；
+    /// 点击该条目时若有新版本则直达主页升级界面，否则发起检查
+    static func menuCheckTitle(for state: UpdateState) -> String {
+        switch state {
+        case .available, .downloading, .downloaded, .installing:
+            return "检查更新 · 有新版本"
+        case .checking:
+            return "正在检查更新…"
+        case .idle, .upToDate, .failed:
+            return "检查更新"
+        }
+    }
+
     /// 卡片内容颜色语义（着色在 HomePageController 做）
     enum CardKind: Equatable {
         case neutral, ok, attention, error
