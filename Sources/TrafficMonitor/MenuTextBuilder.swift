@@ -29,8 +29,8 @@ enum MenuTextBuilder {
         return text
     }
 
-    /// 接口行：名称 | 累计（彩色箭头 + 等宽数字）| 当前速率
-    static func interfaceRow(name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> NSAttributedString {
+    /// 接口行：名称 | 累计（彩色箭头 + 等宽数字）| 合并（上行 + 下行，semibold）
+    static func interfaceRow(name: String, rx: UInt64, tx: UInt64) -> NSAttributedString {
         let paragraph = NSMutableParagraphStyle()
         paragraph.tabStops = [NSTextTab(textAlignment: .left, location: 96),
                               NSTextTab(textAlignment: .left, location: 196)]
@@ -45,8 +45,8 @@ enum MenuTextBuilder {
         text.append(NSAttributedString(string: ByteFormat.string(rx), attributes: attributes(size: 13, color: .labelColor, mono: true)))
 
         text.append(NSAttributedString(string: "\t", attributes: [.paragraphStyle: paragraph]))
-        text.append(NSAttributedString(string: ByteFormat.rate(rate.rx + rate.tx),
-                                       attributes: attributes(size: 12, color: .secondaryLabelColor, mono: true)))
+        text.append(NSAttributedString(string: ByteFormat.string(rx + tx),
+                                       attributes: attributes(size: 13, color: .labelColor, weight: .semibold, mono: true)))
         return text
     }
 

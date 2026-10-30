@@ -393,10 +393,10 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             elapsedSeconds: Int(Date().timeIntervalSince(sessionStart)))
         wifiItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.wifi.displayName,
-            rx: store.wifi.rx, tx: store.wifi.tx, rate: monitor.wifiRate)
+            rx: store.wifi.rx, tx: store.wifi.tx)
         iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
             name: InterfaceCategory.iphone.displayName,
-            rx: store.iphone.rx, tx: store.iphone.tx, rate: monitor.iphoneRate)
+            rx: store.iphone.rx, tx: store.iphone.tx)
         let totalBytesForAlert = currentMeteredTotal()
         let alertProgress = alert.progress(totalBytes: totalBytesForAlert)
         let strip = HomePageController.alertStrip(threshold: alert.threshold,
@@ -410,10 +410,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         }
         alertItem.attributedTitle = MenuTextBuilder.alertHeader(
             armed: alert.threshold != nil, fired: alert.fired, detail: detail)
-    }
-
-    private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {
-        "\(name)  ↑\(ByteFormat.string(tx)) ↓\(ByteFormat.string(rx))   \(ByteFormat.rate(rate.rx + rate.tx))"
     }
 }
 
