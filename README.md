@@ -89,7 +89,7 @@ open "Traffic Monitor.app"
 
 | 环境变量 | 作用 |
 |---|---|
-| `TRAFFICMONITOR_SELFTEST=1` | 运行内置自测后退出（退出码报告结果，当前 210 项） |
+| `TRAFFICMONITOR_SELFTEST=1` | 运行内置自测后退出（退出码报告结果；检查项数随网络环境略有浮动，约 200+ 项） |
 | `TRAFFICMONITOR_SHOWHOME=1` | 启动即打开主页窗口 |
 | `TRAFFICMONITOR_ALERT_MB=1` | 启动即设 1MB 告警阈值（验证告警链路用） |
 | `TRAFFICMONITOR_AUTOUPDATE=1` | 发现新版本即自动下载并跳过确认弹窗直接重启更新（验证升级链路用） |

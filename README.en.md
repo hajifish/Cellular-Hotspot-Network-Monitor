@@ -103,7 +103,7 @@ Or run the build product directly:
 
 | Environment variable | Effect |
 |---|---|
-| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; currently 210 checks) |
+| `TRAFFICMONITOR_SELFTEST=1` | Run the built-in self-test suite and exit (exit code reports the result; check count varies slightly with network conditions, ~200+ checks) |
 | `TRAFFICMONITOR_SHOWHOME=1` | Open the home window immediately on launch |
 | `TRAFFICMONITOR_ALERT_MB=1` | Pre-set a 1 MB alert threshold for verifying the alert path |
 | `TRAFFICMONITOR_AUTOUPDATE=1` | Auto-download when a new version is found and skip the confirm dialog (for verifying the update path) |
