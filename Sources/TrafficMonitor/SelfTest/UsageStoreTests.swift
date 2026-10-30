@@ -46,10 +46,11 @@ enum UsageStoreTests {
     static func resetRestartsCategoryClock() {
         let store = UsageStore()
         let before = store.wifi.startTime
+        let iphoneBefore = store.iphone.startTime
         Thread.sleep(forTimeInterval: 0.02)
         store.reset(.wifi)
         TestRun.expect(store.wifi.startTime.timeIntervalSince(before) >= 0.015,
                        "wifi clock restarts")
-        TestRun.expect(store.iphone.startTime == before, "iphone clock untouched")
+        TestRun.expect(store.iphone.startTime == iphoneBefore, "iphone clock untouched")
     }
 }
