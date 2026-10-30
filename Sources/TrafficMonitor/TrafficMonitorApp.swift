@@ -31,6 +31,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     private var iphoneItem: NSMenuItem!
     private var alertMenu: NSMenu!
     private var alertItem: NSMenuItem!
+    private var checkUpdateItem: NSMenuItem!
     private var milestoneTracker = MilestoneTracker()
     private var changeObserverID: UUID?
 
@@ -77,6 +78,9 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         menu.addItem(.separator())
         menu.addItem(openHome)
         menu.addItem(alertItem)
+        checkUpdateItem = NSMenuItem(title: "检查更新", action: #selector(checkUpdatesAction), keyEquivalent: "")
+        checkUpdateItem.target = self
+        menu.addItem(checkUpdateItem)
         menu.addItem(.separator())
         menu.addItem(quit)
 
@@ -378,6 +382,16 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         homeController.show()
     }
 
+    /// 「检查更新」：已知有新版本（手动或自动检测到）→ 直达主页升级界面；
+    /// 否则发起一次检查，发现新版本后条目文字追加「有新版本」（refresh 驱动）
+    @objc private func checkUpdatesAction() {
+        if UpdatePresentation.wantsCard(for: updateService.state) {
+            openHome()
+        } else {
+            updateService.checkNow()
+        }
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         refresh()
         refreshAlertMenuStates()
@@ -410,6 +424,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         }
         alertItem.attributedTitle = MenuTextBuilder.alertHeader(
             armed: alert.threshold != nil, fired: alert.fired, detail: detail)
+        checkUpdateItem.title = UpdatePresentation.menuCheckTitle(for: updateService.state)
     }
 
     private static func row(_ name: String, rx: UInt64, tx: UInt64, rate: CategoryDelta) -> String {
