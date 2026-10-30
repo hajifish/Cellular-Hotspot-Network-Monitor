@@ -755,3 +755,173 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 - [ ] **Step 8: 手动跟进项（告知用户，非本计划任务）**
 
 `docs/assets/screenshot-home.png` 截图已过时（主页布局变了），无法自动化重截——完成后提醒用户自行更新。
+
+---
+
+### Task 6: 通知正文附触发时刻（HH:mm）
+
+**Files:**
+- Create: `Sources/TrafficMonitor/NotificationCopy.swift`
+- Modify: `Sources/TrafficMonitor/TrafficMonitorApp.swift:306-348`（`checkMilestone` 正文、`fireAlert` 正文与 `showFallbackAlert`）
+- Create: `Sources/TrafficMonitor/SelfTest/NotificationCopyTests.swift`
+- Modify: `Sources/TrafficMonitor/SelfTest/TestSupport.swift`（注册套件，`RingGauge` 之后）
+- Modify: `CHANGELOG.md`（Unreleased「变更」段追加一条）
+
+**Interfaces:**
+- Consumes: `ByteFormat.string(_:)`
+- Produces: `NotificationCopy.timeText(at: Date) -> String`、`NotificationCopy.alertBody(usedBytes: UInt64, thresholdBytes: UInt64, at: Date) -> String`、`NotificationCopy.milestoneBody(totalBytes: UInt64, gigabytes: Int, at: Date) -> String`
+
+设计已获用户确认（2026-10-30）：告警 + 里程碑两条通知正文末尾附「（HH:mm）」，兜底弹窗同步并用统一告警文案；更新通知不动；时刻取触发那一秒的 `Date()`。**测试不得用固定时间戳断言格式化结果**（时区/ locale 不定，且跨分钟边界会引入 flake——同 UsageStoreTests 教训），只断言结构与内容段。
+
+- [ ] **Step 1: 写失败测试**
+
+新建 `Sources/TrafficMonitor/SelfTest/NotificationCopyTests.swift`：
+
+```swift
+enum NotificationCopyTests {
+    static func all() {
+        alertBodyStructure()
+        milestoneBodyStructure()
+    }
+
+    /// 正文含用量与阈值段、末尾是全角括号时刻；不断言具体 HH:mm（时区相关）
+    static func alertBodyStructure() {
+        let body = NotificationCopy.alertBody(usedBytes: 1_200_000_000,
+                                              thresholdBytes: 5_000_000_000, at: Date())
+        TestRun.expect(body.contains("自设置告警起已使用 1.2 GB"), "alert body usage part")
+        TestRun.expect(body.contains("达到设定的 5.0 GB"), "alert body threshold part")
+        TestRun.expect(body.hasSuffix("）"), "alert body ends with bracketed time")
+        let inner = String(body.dropLast("）".count))
+        TestRun.expect(inner.hasSuffix("）") == false || inner.contains("（"), "alert body has one time bracket")
+    }
+
+    static func milestoneBodyStructure() {
+        let body = NotificationCopy.milestoneBody(totalBytes: 3_000_000_000, gigabytes: 3, at: Date())
+        TestRun.expect(body.contains("自上次重置已累计使用 3.0 GB（3 GB）"), "milestone body totals part")
+        TestRun.expect(body.hasSuffix("）"), "milestone body ends with bracketed time")
+    }
+}
+```
+
+- [ ] **Step 2: 注册套件并确认编译失败**
+
+`TestSupport.swift` 的 `TestRun.suite("RingGauge")` 之后加：
+
+```swift
+        TestRun.suite("NotificationCopy") { NotificationCopyTests.all() }
+```
+
+运行 `swift build 2>&1 | tail -3`，预期 FAIL：`cannot find 'NotificationCopy' in scope`。
+
+- [ ] **Step 3: 实现 NotificationCopy**
+
+新建 `Sources/TrafficMonitor/NotificationCopy.swift`：
+
+```swift
+import Foundation
+
+/// 系统通知文案构造（纯函数，可测）：正文末尾附触发时刻「（HH:mm）」，
+/// 格式与主页「开始时间」行一致。
+enum NotificationCopy {
+    /// 触发时刻 HH:mm
+    static func timeText(at date: Date) -> String {
+        date.formatted(.dateTime.hour().minute())
+    }
+
+    /// 流量告警正文（通知与兜底弹窗共用）
+    static func alertBody(usedBytes: UInt64, thresholdBytes: UInt64, at date: Date) -> String {
+        "自设置告警起已使用 \(ByteFormat.string(usedBytes))，达到设定的 \(ByteFormat.string(thresholdBytes))。（\(timeText(at: date))）"
+    }
+
+    /// 里程碑正文
+    static func milestoneBody(totalBytes: UInt64, gigabytes: Int, at date: Date) -> String {
+        "自上次重置已累计使用 \(ByteFormat.string(totalBytes))（\(gigabytes) GB）。（\(timeText(at: date))）"
+    }
+}
+```
+
+- [ ] **Step 4: 接入 fireAlert / showFallbackAlert / checkMilestone**
+
+`TrafficMonitorApp.swift` 中三处接入（`firedAt` 供通知与兜底共用同一时刻）：
+
+`fireAlert(usedBytes:)` 整体替换为：
+
+```swift
+    private func fireAlert(usedBytes: UInt64) {
+        let firedAt = Date()
+        let limit = ByteFormat.string(alert.threshold ?? 0)
+        logger.info("alert fired: used=\(ByteFormat.string(usedBytes), privacy: .public) threshold=\(limit, privacy: .public)")
+        NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
+        let content = UNMutableNotificationContent()
+        content.title = "Traffic Monitor 流量告警"
+        content.body = NotificationCopy.alertBody(usedBytes: usedBytes,
+                                                  thresholdBytes: alert.threshold ?? 0,
+                                                  at: firedAt)
+        content.sound = .default
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { [weak self] error in
+            if error != nil {
+                Task { @MainActor in
+                    self?.showFallbackAlert(usedBytes: usedBytes,
+                                            limitBytes: self?.alert.threshold ?? 0,
+                                            at: firedAt)
+                }
+            }
+        }
+    }
+```
+
+`showFallbackAlert` 整体替换为（措辞统一用告警正文，消除原「自开始计时」不一致）：
+
+```swift
+    /// 通知不可用时的兜底：应用内弹窗（正文与通知一致，含触发时刻）
+    private func showFallbackAlert(usedBytes: UInt64, limitBytes: UInt64, at date: Date) {
+        let dialog = NSAlert()
+        dialog.alertStyle = .warning
+        dialog.messageText = "流量告警"
+        dialog.informativeText = NotificationCopy.alertBody(usedBytes: usedBytes,
+                                                            thresholdBytes: limitBytes,
+                                                            at: date)
+        dialog.addButton(withTitle: "好的")
+        NSApp.activate(ignoringOtherApps: true)
+        dialog.runModal()
+    }
+```
+
+`checkMilestone()` 中通知正文一行替换为：
+
+```swift
+        content.body = NotificationCopy.milestoneBody(totalBytes: totalBytes,
+                                                      gigabytes: gb,
+                                                      at: Date())
+```
+
+- [ ] **Step 5: CHANGELOG 追加**
+
+`CHANGELOG.md` Unreleased「变更 (Changed)」段末尾追加：
+
+```markdown
+- 流量告警与里程碑通知正文附触发时刻「（HH:mm）」；通知不可用时的应用内
+  兜底弹窗同步标注并统一告警文案
+```
+
+- [ ] **Step 6: 全量自测验证通过**
+
+```bash
+swift build 2>&1 | tail -3 && TRAFFICMONITOR_SELFTEST=1 .build/debug/TrafficMonitor
+```
+
+预期：`── NotificationCopy` 行 `ok`；`✔ N checks passed`（N = 210 + 7 = 217）；退出码 0。
+
+- [ ] **Step 7: 提交**
+
+```bash
+git add Sources/TrafficMonitor/NotificationCopy.swift Sources/TrafficMonitor/TrafficMonitorApp.swift \
+        Sources/TrafficMonitor/SelfTest/NotificationCopyTests.swift Sources/TrafficMonitor/SelfTest/TestSupport.swift \
+        CHANGELOG.md
+git commit -m "feat: 告警与里程碑通知正文附触发时刻（HH:mm）
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+说明：Task 6 未同步 README 特性 bullet（时刻标注属通知细节，CHANGELOG 已记录）——终审若认为应同步再补。
