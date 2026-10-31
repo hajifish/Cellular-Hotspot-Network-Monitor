@@ -30,8 +30,8 @@
   <em>Home window: session summary, per-interface cards (with independent reset), rolling 120-second rate graph</em>
 </p>
 <p align="center">
-  <img src="docs/assets/screenshot-menubar.png" alt="Menu bar: live up/down rates" width="420"><br>
-  <em>Menu bar: live rates and totals, switchable display modes</em>
+  <img src="docs/assets/screenshot-menubar.png" alt="Menu bar dropdown: per-module totals with merged sum" width="420"><br>
+  <em>Menu bar dropdown: Wi-Fi / iPhone totals plus an "All" row, switchable display modes</em>
 </p>
 
 ## Features
