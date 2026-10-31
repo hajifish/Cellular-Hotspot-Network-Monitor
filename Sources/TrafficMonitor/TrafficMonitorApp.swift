@@ -322,7 +322,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         logger.info("milestone reached: \(gb, privacy: .public) GB, total=\(ByteFormat.string(totalBytes), privacy: .public)")
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 流量里程碑"
-        content.body = "自上次重置已累计使用 \(ByteFormat.string(totalBytes))（\(gb) GB）。"
+        content.body = "累计已用 \(ByteFormat.string(totalBytes))。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { error in
@@ -337,7 +337,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 流量告警"
-        content.body = "自设置告警起已使用 \(used)，达到设定的 \(limit)。"
+        content.body = "已用 \(used)，达到 \(limit)。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { [weak self] error in
