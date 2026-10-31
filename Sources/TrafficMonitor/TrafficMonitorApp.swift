@@ -234,7 +234,11 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
-        // 告警进度从设置时刻的流量重新起算
+        // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
+        if bytes != nil, askSyncReset() {
+            monitor.reset(nil) // onReset 已自动重置告警基线并对齐里程碑
+        }
+        // 告警进度从设置时刻的流量重新起算（刚重置过则基线为 0）
         alert.setThreshold(bytes, baselineBytes: currentMeteredTotal())
         if persist {
             if let bytes {
@@ -245,6 +249,17 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             }
         }
         refreshAlertMenuStates()
+    }
+
+    /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量
+    private func askSyncReset() -> Bool {
+        let dialog = NSAlert()
+        dialog.messageText = "是否同步重置累计流量？"
+        dialog.informativeText = "将清零所有模块（Wi-Fi + iPhone）的累计流量并重新开始计时，速率曲线与里程碑同步归零，告警进度从 0 起算。此操作不可撤销。\n选择「仅设置告警」则保留现有累计与计时，告警进度从当前时刻起算。"
+        dialog.addButton(withTitle: "同步重置")
+        dialog.addButton(withTitle: "仅设置告警")
+        NSApp.activate(ignoringOtherApps: true)
+        return dialog.runModal() == .alertFirstButtonReturn
     }
 
     @objc private func selectAlertPreset(_ sender: NSMenuItem) {
