@@ -120,9 +120,12 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         updateService.startAutomaticChecks()
         monitor.start()
         refresh()
-        // 诊断/验证用：启动即打开主页
+        // 诊断/验证用：启动即打开主页 / 弹出菜单（重截截图等验证场景）
         if ProcessInfo.processInfo.environment["TRAFFICMONITOR_SHOWHOME"] == "1" {
             homeController.show()
+        }
+        if ProcessInfo.processInfo.environment["TRAFFICMONITOR_SHOWMENU"] == "1" {
+            statusItem.button?.performClick(nil)
         }
     }
 
