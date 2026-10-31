@@ -61,6 +61,7 @@ enum TrafficMonitorTests {
         monitor.reset()
         TestRun.expectEqual(monitor.store.wifi.rx, UInt64(0), "reset store")
         TestRun.expectEqual(monitor.wifiRate, CategoryDelta.zero, "reset rate")
+        TestRun.expect(monitor.history.samples.isEmpty, "reset clears rate history")
     }
 
     static func resetCategoryKeepsOtherCategory() {
