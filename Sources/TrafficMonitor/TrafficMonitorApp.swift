@@ -29,6 +29,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     private var startTimeItem: NSMenuItem!
     private var wifiItem: NSMenuItem!
     private var iphoneItem: NSMenuItem!
+    private var totalItem: NSMenuItem!
     private var alertMenu: NSMenu!
     private var alertItem: NSMenuItem!
     private var checkUpdateItem: NSMenuItem!
@@ -62,6 +63,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         startTimeItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         wifiItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         iphoneItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        totalItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
 
         let openHome = NSMenuItem(title: "打开主页", action: #selector(openHome), keyEquivalent: "0")
         openHome.target = self
@@ -75,6 +77,8 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         menu.addItem(.separator())
         menu.addItem(wifiItem)
         menu.addItem(iphoneItem)
+        menu.addItem(.separator())
+        menu.addItem(totalItem)
         menu.addItem(.separator())
         menu.addItem(openHome)
         menu.addItem(alertItem)
@@ -406,12 +410,22 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         startTimeItem.attributedTitle = MenuTextBuilder.startTimeRow(
             startDate: sessionStart,
             elapsedSeconds: Int(Date().timeIntervalSince(sessionStart)))
-        wifiItem.attributedTitle = MenuTextBuilder.interfaceRow(
-            name: InterfaceCategory.wifi.displayName,
-            rx: store.wifi.rx, tx: store.wifi.tx)
-        iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(
-            name: InterfaceCategory.iphone.displayName,
-            rx: store.iphone.rx, tx: store.iphone.tx)
+        let specs = [
+            MenuTextBuilder.InterfaceRowSpec(name: InterfaceCategory.wifi.displayName,
+                                             rx: store.wifi.rx, tx: store.wifi.tx),
+            MenuTextBuilder.InterfaceRowSpec(name: InterfaceCategory.iphone.displayName,
+                                             rx: store.iphone.rx, tx: store.iphone.tx),
+            MenuTextBuilder.InterfaceRowSpec(name: "合计",
+                                             rx: store.wifi.rx + store.iphone.rx,
+                                             tx: store.wifi.tx + store.iphone.tx),
+        ]
+        let stops = MenuTextBuilder.columnStops(forRows: specs)
+        wifiItem.attributedTitle = MenuTextBuilder.interfaceRow(name: specs[0].name, rx: specs[0].rx,
+                                                                tx: specs[0].tx, stops: stops)
+        iphoneItem.attributedTitle = MenuTextBuilder.interfaceRow(name: specs[1].name, rx: specs[1].rx,
+                                                                  tx: specs[1].tx, stops: stops)
+        totalItem.attributedTitle = MenuTextBuilder.interfaceRow(name: specs[2].name, rx: specs[2].rx,
+                                                                 tx: specs[2].tx, stops: stops, emphasized: true)
         let totalBytesForAlert = currentMeteredTotal()
         let alertProgress = alert.progress(totalBytes: totalBytesForAlert)
         let strip = HomePageController.alertStrip(threshold: alert.threshold,
