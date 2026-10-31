@@ -229,23 +229,35 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     private func currentMeteredTotal() -> UInt64 {
+        Self.meteredTotal(of: monitor)
+    }
+
+    /// 四项（两模块 × 收/发）累计之和：告警与里程碑的合并流量口径
+    static func meteredTotal(of monitor: TrafficMonitor) -> UInt64 {
         let store = monitor.store
         return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
+    /// 应用告警阈值的编排核心（静态纯函数，自测直接调用）：
+    /// 实际阈值 + 同步重置 → 先清零全部累计再以 0 为告警基线；
+    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
+    static func applyAlertThreshold(_ bytes: UInt64?, syncReset: Bool,
+                                    monitor: TrafficMonitor, alert: TrafficAlert) {
+        if let bytes, syncReset {
+            monitor.reset(nil)
+        }
+        alert.setThreshold(bytes, baselineBytes: meteredTotal(of: monitor))
+    }
+
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
         // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
+        let syncReset = bytes != nil && askSyncReset() // && 短路：仅设实际阈值时弹窗
         if bytes != nil {
-            let syncReset = askSyncReset()
             // askSyncReset 是 runModal 阻塞式模态，期间采样定时器停摆；
             // 先补一拍把弹窗期流量结算进旧周期，再重置/读基线
             monitor.tick()
-            if syncReset {
-                monitor.reset(nil) // onReset 已自动重置告警基线并对齐里程碑
-            }
         }
-        // 告警进度从设置时刻的流量重新起算（刚重置过则基线为 0）
-        alert.setThreshold(bytes, baselineBytes: currentMeteredTotal())
+        Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert)
         if persist {
             if let bytes {
                 UserDefaults.standard.set(Int64(bytes), forKey: Self.alertDefaultsKey)
