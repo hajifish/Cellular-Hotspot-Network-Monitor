@@ -257,7 +257,10 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         refreshAlertMenuStates()
     }
 
-    /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量
+    /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量。
+    /// 注意：runModal() 阻塞式模态弹窗——激活本应用、阻塞事件循环直到用户作答，
+    /// 期间采样定时器停摆（调用方需先补拍结算，见 applyAlertThreshold）。
+    /// - Returns: true 表示用户选择「同步重置」；false 表示「仅设置告警」/取消（Esc）
     private func askSyncReset() -> Bool {
         let dialog = NSAlert()
         dialog.messageText = "是否同步重置累计流量？"
