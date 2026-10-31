@@ -158,22 +158,22 @@ final class HomePageController {
             updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 14, y: 158, width: 150, height: 18)
+            title.frame = NSRect(x: 14, y: 150, width: 150, height: 18)
             let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-            meta.frame = NSRect(x: 14, y: 142, width: 193, height: 14)
+            meta.frame = NSRect(x: 14, y: 134, width: 193, height: 14)
             if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
                                        accessibilityDescription: "重置计量") {
                 let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
                 reset.isBordered = false
                 reset.contentTintColor = .secondaryLabelColor
                 // 显式定框：默认按钮偏高会顶出卡片上边缘
-                reset.frame = NSRect(x: 181, y: 156, width: 26, height: 22)
+                reset.frame = NSRect(x: 181, y: 148, width: 26, height: 22)
                 reset.toolTip = "重置计量"
                 reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
                 card.contentView?.addSubview(reset)
             }
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
-            rate.frame = NSRect(x: 14, y: 66, width: 193, height: 62)
+            rate.frame = NSRect(x: 14, y: 58, width: 193, height: 62)
             // 累计单行横排：↑/↓ 同行（窄卡横向利用更合理；最宽量级也在可用宽度内）
             let total = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
             total.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
