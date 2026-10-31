@@ -312,9 +312,11 @@ final class HomePageController {
     private func refreshToggles() {
         styleSphere(ratesToggle, on: StatusBarPrefs.showRates)
         styleSphere(totalsToggle, on: StatusBarPrefs.showTotals)
-        // 文字常驻，仅用颜色深浅区分选中态
-        ratesLabel.textColor = StatusBarPrefs.showRates ? .labelColor : .secondaryLabelColor
-        totalsLabel.textColor = StatusBarPrefs.showTotals ? .labelColor : .secondaryLabelColor
+        // 文字常驻：选中 = 纯白加粗，未选 = 次要灰常规，颜色 + 字重双重拉开层级
+        ratesLabel.font = .systemFont(ofSize: 11, weight: StatusBarPrefs.showRates ? .semibold : .regular)
+        ratesLabel.textColor = StatusBarPrefs.showRates ? .white : .secondaryLabelColor
+        totalsLabel.font = .systemFont(ofSize: 11, weight: StatusBarPrefs.showTotals ? .semibold : .regular)
+        totalsLabel.textColor = StatusBarPrefs.showTotals ? .white : .secondaryLabelColor
     }
 
     // MARK: - 按模块重置
