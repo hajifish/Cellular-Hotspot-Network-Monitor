@@ -36,7 +36,7 @@
 ```swift
 private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
     if bytes != nil, askSyncReset() {
-        monitor.reset(nil)   // onReset 已自动：告警基线挪到新总量、里程碑对齐、速率历史清空
+        monitor.reset(nil)   // reset 本体清速率历史；onReset 自动：告警基线挪到新总量、里程碑对齐
     }
     alert.setThreshold(bytes, baselineBytes: currentMeteredTotal()) // 重置后总量为 0，基线自然为 0
     // persist 与 refreshAlertMenuStates 维持现状
