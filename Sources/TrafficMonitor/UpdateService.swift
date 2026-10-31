@@ -106,7 +106,7 @@ final class UpdateService {
     static func postUpdateNotification(_ release: ReleaseInfo) {
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 有新版本"
-        content.body = "新版本 \(release.tagName) 已发布（当前 \(AppVersion.current)），可从菜单或主页更新。"
+        content.body = "\(release.tagName) 可更新（当前 \(AppVersion.current)）。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: "update-\(release.tagName)", content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { _ in } // 通知不可用时静默：菜单/主页仍有入口
