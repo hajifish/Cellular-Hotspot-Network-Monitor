@@ -264,7 +264,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     private func askSyncReset() -> Bool {
         let dialog = NSAlert()
         dialog.messageText = "是否同步重置累计流量？"
-        dialog.informativeText = "将清零所有模块（Wi-Fi + iPhone）的累计流量并重新开始计时，速率曲线与里程碑同步归零，告警进度从 0 起算。此操作不可撤销。\n选择「仅设置告警」则保留现有累计与计时，告警进度从当前时刻起算。"
+        dialog.informativeText = "将清零所有模块的累计流量并重新开始计时，速率曲线与里程碑同步归零，告警进度从 0 起算。此操作不可撤销。\n选择「仅设置告警」则保留现有累计与计时，告警进度从当前时刻起算。"
         dialog.addButton(withTitle: "同步重置")
         dialog.addButton(withTitle: "仅设置告警")
         NSApp.activate(ignoringOtherApps: true)
