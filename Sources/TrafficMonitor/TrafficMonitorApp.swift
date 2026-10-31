@@ -77,7 +77,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         menu.addItem(.separator())
         menu.addItem(wifiItem)
         menu.addItem(iphoneItem)
-        menu.addItem(.separator())
         menu.addItem(totalItem)
         menu.addItem(.separator())
         menu.addItem(openHome)

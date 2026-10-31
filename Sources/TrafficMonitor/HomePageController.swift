@@ -138,40 +138,39 @@ final class HomePageController {
             summaryValues.append(value)
         }
 
-        // 左列接口卡片：上下堆叠；每卡两行——上行「标题 + 开始信息 + 重置」，下行「速率 + 累计」
+        // 左列接口卡片：左右并排（整块区域与外部布局不变）；每卡竖排——标题+开始信息 / 速率两行 / 累计两行
         let cardSpecs: [(InterfaceCategory, CGFloat)] = [
-            (.wifi, 274),
-            (.iphone, 180),
+            (.wifi, 24),
+            (.iphone, 259),
         ]
-        for (category, y) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: 24, y: y, width: 456, height: 86))
+        for (category, x) in cardSpecs {
+            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 182))
             content.addSubview(card)
             updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 18, y: 56, width: 240, height: 18)
+            title.frame = NSRect(x: 14, y: 158, width: 150, height: 18)
             let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-            meta.frame = NSRect(x: 258, y: 58, width: 160, height: 16)
-            meta.alignment = .right
+            meta.frame = NSRect(x: 14, y: 142, width: 193, height: 14)
             if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
                                        accessibilityDescription: "重置计量") {
                 let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
                 reset.isBordered = false
                 reset.contentTintColor = .secondaryLabelColor
-                reset.setFrameOrigin(NSPoint(x: 456 - 34, y: 54))
+                reset.setFrameOrigin(NSPoint(x: 221 - 32, y: 160))
                 reset.toolTip = "重置计量"
                 reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
                 card.contentView?.addSubview(reset)
             }
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
-            rate.frame = NSRect(x: 18, y: 12, width: 280, height: 40)
-            // 累计两行：说明字 + 右侧 ↑/↓ 两行等宽数值（三位数以上量级也不越界）
+            rate.frame = NSRect(x: 14, y: 70, width: 193, height: 62)
+            // 累计两行：说明字 + ↑/↓ 两行等宽数值（三位数以上量级也不越界）
             let totalCaption = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
             totalCaption.stringValue = "累计"
-            totalCaption.frame = NSRect(x: 334, y: 27, width: 26, height: 14)
+            totalCaption.frame = NSRect(x: 14, y: 32, width: 26, height: 14)
             let total = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
             total.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-            total.frame = NSRect(x: 362, y: 14, width: 76, height: 36)
+            total.frame = NSRect(x: 44, y: 18, width: 163, height: 36)
             total.lineBreakMode = .byClipping
             for label in [title, rate, total, meta, totalCaption] {
                 card.contentView?.addSubview(label)
@@ -496,10 +495,11 @@ final class HomePageController {
 
             let down = ByteFormat.rateParts(rate.rx)
             let up = ByteFormat.rateParts(rate.tx)
+            // 卡片为窄卡竖排：↓/↑ 速率各占一行
             let rateText = NSMutableAttributedString(attributedString: Self.attributedRate(
                 arrow: "↓", accent: Self.downloadAccent,
                 value: down.value, unit: down.unit, numberSize: 19, unitSize: 11))
-            rateText.append(NSAttributedString(string: "   "))
+            rateText.append(NSAttributedString(string: "\n"))
             rateText.append(Self.attributedRate(
                 arrow: "↑", accent: Self.uploadAccent,
                 value: up.value, unit: up.unit, numberSize: 19, unitSize: 11))
