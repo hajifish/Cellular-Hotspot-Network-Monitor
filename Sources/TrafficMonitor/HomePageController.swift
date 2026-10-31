@@ -175,9 +175,9 @@ final class HomePageController {
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
             rate.frame = NSRect(x: 14, y: 58, width: 193, height: 62)
             // 累计单行横排：↑/↓ 同行（窄卡横向利用更合理；最宽量级也在可用宽度内）
-            let total = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
-            total.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-            total.frame = NSRect(x: 14, y: 20, width: 193, height: 18)
+            let total = makeLabel(size: 13, color: .secondaryLabelColor, weight: .regular)
+            total.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+            total.frame = NSRect(x: 14, y: 20, width: 193, height: 20)
             total.lineBreakMode = .byClipping
             for label in [title, rate, total, meta] {
                 card.contentView?.addSubview(label)
