@@ -73,6 +73,11 @@ final class HomePageController {
         return "\(s)s"
     }
 
+    /// 模块卡片累计两行文本（纯函数，可测）：↑上行 / ↓下行，右列堆叠展示
+    nonisolated static func totalLines(tx: UInt64, rx: UInt64) -> (up: String, down: String) {
+        ("↑ \(ByteFormat.string(tx))", "↓ \(ByteFormat.string(rx))")
+    }
+
     /// 汇总条告警文案与状态（纯函数，可测）：
     /// 未设置 → 白色；已设置 → 橙色倒计时（剩余量 + 已用百分比）；已触发 → 红色
     nonisolated static func alertStrip(threshold: UInt64?, fired: Bool,
@@ -160,11 +165,15 @@ final class HomePageController {
             }
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
             rate.frame = NSRect(x: 18, y: 12, width: 280, height: 40)
-            let total = makeLabel(size: 12, color: .secondaryLabelColor, weight: .regular)
-            total.frame = NSRect(x: 298, y: 26, width: 140, height: 20)
-            total.alignment = .right
+            // 累计两行：说明字 + 右侧 ↑/↓ 两行等宽数值（三位数以上量级也不越界）
+            let totalCaption = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
+            totalCaption.stringValue = "累计"
+            totalCaption.frame = NSRect(x: 334, y: 27, width: 26, height: 14)
+            let total = makeLabel(size: 11, color: .secondaryLabelColor, weight: .regular)
+            total.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+            total.frame = NSRect(x: 362, y: 14, width: 76, height: 36)
             total.lineBreakMode = .byClipping
-            for label in [title, rate, total, meta] {
+            for label in [title, rate, total, meta, totalCaption] {
                 card.contentView?.addSubview(label)
             }
             cards[category] = (rate, total, title, meta)
@@ -493,7 +502,8 @@ final class HomePageController {
                 arrow: "↑", accent: Self.uploadAccent,
                 value: up.value, unit: up.unit, numberSize: 19, unitSize: 11))
             labels.rate.attributedStringValue = rateText
-            labels.total.stringValue = "累计  ↑ \(ByteFormat.string(usage.tx))    ↓ \(ByteFormat.string(usage.rx))"
+            let lines = Self.totalLines(tx: usage.tx, rx: usage.rx)
+            labels.total.stringValue = lines.up + "\n" + lines.down
         }
 
         // 会话/告警汇总
