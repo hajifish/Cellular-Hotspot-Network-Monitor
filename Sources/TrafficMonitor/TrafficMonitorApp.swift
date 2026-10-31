@@ -235,8 +235,14 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
 
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
         // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
-        if bytes != nil, askSyncReset() {
-            monitor.reset(nil) // onReset 已自动重置告警基线并对齐里程碑
+        if bytes != nil {
+            let syncReset = askSyncReset()
+            // askSyncReset 是 runModal 阻塞式模态，期间采样定时器停摆；
+            // 先补一拍把弹窗期流量结算进旧周期，再重置/读基线
+            monitor.tick()
+            if syncReset {
+                monitor.reset(nil) // onReset 已自动重置告警基线并对齐里程碑
+            }
         }
         // 告警进度从设置时刻的流量重新起算（刚重置过则基线为 0）
         alert.setThreshold(bytes, baselineBytes: currentMeteredTotal())
