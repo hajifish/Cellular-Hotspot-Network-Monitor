@@ -232,17 +232,22 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         Self.meteredTotal(of: monitor)
     }
 
-    /// 四项（两模块 × 收/发）累计之和：告警与里程碑的合并流量口径
+    /// 各模块收/发累计之和（模块集合见 InterfaceCategory）：告警与里程碑的合并流量口径
     static func meteredTotal(of monitor: TrafficMonitor) -> UInt64 {
         let store = monitor.store
         return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
-    /// 应用告警阈值的编排核心（静态纯函数，自测直接调用）：
-    /// 实际阈值 + 同步重置 → 先清零全部累计再以 0 为告警基线；
+    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，会修改传入的 monitor/alert，自测直接调用）：
+    /// 实际阈值 + 同步重置 → 先补一拍结算（模态弹窗期间采样停摆），再清零全部累计、以 0 为告警基线；
     /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
     static func applyAlertThreshold(_ bytes: UInt64?, syncReset: Bool,
                                     monitor: TrafficMonitor, alert: TrafficAlert) {
+        if bytes != nil {
+            // 调用前可能经历了 runModal 模态（采样定时器停摆）；
+            // 先补一拍把这段时间的流量结算进旧周期，再重置/读基线
+            monitor.tick()
+        }
         if let bytes, syncReset {
             monitor.reset(nil)
         }
@@ -252,11 +257,6 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
         // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
         let syncReset = bytes != nil && askSyncReset() // && 短路：仅设实际阈值时弹窗
-        if bytes != nil {
-            // askSyncReset 是 runModal 阻塞式模态，期间采样定时器停摆；
-            // 先补一拍把弹窗期流量结算进旧周期，再重置/读基线
-            monitor.tick()
-        }
         Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert)
         if persist {
             if let bytes {
@@ -270,8 +270,8 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量。
-    /// 注意：runModal() 阻塞式模态弹窗——激活本应用、阻塞事件循环直到用户作答，
-    /// 期间采样定时器停摆（调用方需先补拍结算，见 applyAlertThreshold）。
+    /// 注意：runModal() 进入模态 run loop——激活本应用、阻塞调用点直到用户作答，
+    /// 期间采样定时器停摆（编排函数 applyAlertThreshold 会先补一拍结算）。
     /// - Returns: true 表示用户选择「同步重置」；false 表示「仅设置告警」/取消（Esc）
     private func askSyncReset() -> Bool {
         let dialog = NSAlert()

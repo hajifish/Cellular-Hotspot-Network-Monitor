@@ -7,6 +7,7 @@ enum TrafficMonitorAppTests {
         applyAlertThresholdKeepsTotalsWhenDecliningReset()
         applyAlertThresholdSyncResetZeroesTotalsAndBaseline()
         applyAlertThresholdKeepsTotalsWhenDisabling()
+        applyAlertThresholdSettlesDialogTrafficBeforeReset()
     }
 
     /// 基线态：wifi 100/50 + iphone 20/10，合并总量 180
@@ -56,5 +57,21 @@ enum TrafficMonitorAppTests {
                                               monitor: monitor, alert: alert)
         TestRun.expectEqual(MenuBarController.meteredTotal(of: monitor), UInt64(180), "totals survive disable")
         TestRun.expect(alert.threshold == nil, "threshold cleared")
+    }
+
+    static func applyAlertThresholdSettlesDialogTrafficBeforeReset() {
+        // 模态弹窗期间采样定时器停摆：编排函数须先补一拍结算再重置，
+        // 否则弹窗期流量会在重置后的下一拍追溯计入新周期（Issue #10）
+        let sampler = FakeSampler(samples: [])
+        let monitor = TrafficMonitor(sampler: sampler)
+        monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
+        sampler.samples = [TrafficMonitorTests.sample("en0", .wifi, rx: 90, tx: 0)] // 弹窗期 +90
+        let alert = TrafficAlert()
+        MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
+                                              monitor: monitor, alert: alert)
+        sampler.samples = [TrafficMonitorTests.sample("en0", .wifi, rx: 108, tx: 0)] // 新周期 +18
+        monitor.tick()
+        TestRun.expectEqual(MenuBarController.meteredTotal(of: monitor), UInt64(18),
+                            "dialog-period traffic settled before reset")
     }
 }
