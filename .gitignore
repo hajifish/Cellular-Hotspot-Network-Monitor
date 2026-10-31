@@ -19,6 +19,3 @@ dist/
 
 # Brainstorm visual companion scratch files
 .superpowers/
-
-# Editor-local settings (VSCode)
-.vscode/

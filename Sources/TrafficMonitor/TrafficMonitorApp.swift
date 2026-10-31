@@ -229,13 +229,35 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     private func currentMeteredTotal() -> UInt64 {
+        Self.meteredTotal(of: monitor)
+    }
+
+    /// 各模块收/发累计之和（模块集合见 InterfaceCategory）：告警与里程碑的合并流量口径
+    static func meteredTotal(of monitor: TrafficMonitor) -> UInt64 {
         let store = monitor.store
         return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
+    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，会修改传入的 monitor/alert，自测直接调用）：
+    /// 实际阈值 + 同步重置 → 先补一拍结算（模态弹窗期间采样停摆），再清零全部累计、以 0 为告警基线；
+    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
+    static func applyAlertThreshold(_ bytes: UInt64?, syncReset: Bool,
+                                    monitor: TrafficMonitor, alert: TrafficAlert) {
+        if bytes != nil {
+            // 调用前可能经历了 runModal 模态（采样定时器停摆）；
+            // 先补一拍把这段时间的流量结算进旧周期，再重置/读基线
+            monitor.tick()
+        }
+        if let bytes, syncReset {
+            monitor.reset(nil)
+        }
+        alert.setThreshold(bytes, baselineBytes: meteredTotal(of: monitor))
+    }
+
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
-        // 告警进度从设置时刻的流量重新起算
-        alert.setThreshold(bytes, baselineBytes: currentMeteredTotal())
+        // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
+        let syncReset = bytes != nil && askSyncReset() // && 短路：仅设实际阈值时弹窗
+        Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert)
         if persist {
             if let bytes {
                 UserDefaults.standard.set(Int64(bytes), forKey: Self.alertDefaultsKey)
@@ -245,6 +267,20 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             }
         }
         refreshAlertMenuStates()
+    }
+
+    /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量。
+    /// 注意：runModal() 进入模态 run loop——激活本应用、阻塞调用点直到用户作答，
+    /// 期间采样定时器停摆（编排函数 applyAlertThreshold 会先补一拍结算）。
+    /// - Returns: true 表示用户选择「同步重置」；false 表示「仅设置告警」/取消（Esc）
+    private func askSyncReset() -> Bool {
+        let dialog = NSAlert()
+        dialog.messageText = "是否同步重置累计流量？"
+        dialog.informativeText = "将清零所有模块的累计流量并重新开始计时，速率曲线与里程碑同步归零，告警进度从 0 起算。此操作不可撤销。\n选择「仅设置告警」则保留现有累计与计时，告警进度从当前时刻起算。"
+        dialog.addButton(withTitle: "同步重置")
+        dialog.addButton(withTitle: "仅设置告警")
+        NSApp.activate(ignoringOtherApps: true)
+        return dialog.runModal() == .alertFirstButtonReturn
     }
 
     @objc private func selectAlertPreset(_ sender: NSMenuItem) {
@@ -322,7 +358,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         logger.info("milestone reached: \(gb, privacy: .public) GB, total=\(ByteFormat.string(totalBytes), privacy: .public)")
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 流量里程碑"
-        content.body = "自上次重置已累计使用 \(ByteFormat.string(totalBytes))（\(gb) GB）。"
+        content.body = "累计已用 \(ByteFormat.string(totalBytes))。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { error in
@@ -337,7 +373,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
         let content = UNMutableNotificationContent()
         content.title = "Traffic Monitor 流量告警"
-        content.body = "自设置告警起已使用 \(used)，达到设定的 \(limit)。"
+        content.body = "已用 \(used)，达到 \(limit)。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { [weak self] error in
