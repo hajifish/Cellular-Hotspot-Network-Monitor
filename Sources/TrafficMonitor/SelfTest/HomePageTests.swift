@@ -5,6 +5,12 @@ enum HomePageTests {
         ratePartsSplit()
         alertStripFormatting()
         moduleRunningState()
+        totalLineFormat()
+    }
+
+    static func totalLineFormat() {
+        let line = HomePageController.totalLine(tx: 123_400_000, rx: 567_800_000)
+        TestRun.expectEqual(line, "累计 ↑ 123.4 MB  ↓ 567.8 MB", "total single line")
     }
 
     static func moduleRunningState() {

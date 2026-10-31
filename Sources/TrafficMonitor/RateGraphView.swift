@@ -33,7 +33,8 @@ final class RateGraphView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let history else { return }
-        let plot = bounds.insetBy(dx: 8, dy: 10)
+        // 顶部预留 34pt 标注带（两行速率值叠放），折线绘图区永远到不了
+        let plot = NSRect(x: 8, y: 10, width: bounds.width - 16, height: bounds.height - 44)
         let samples = history.samples
         let maxRate = Self.niceMaximum(samples.map { max($0.rx, $0.tx) }.max() ?? 1)
 
@@ -58,9 +59,9 @@ final class RateGraphView: NSView {
         drawSeries(Self.downloadColor, samples, point, { $0.rx }, areaFill: true)
         drawSeries(Self.uploadColor, samples, point, { $0.tx }, areaFill: false)
 
-        // 线端直接标注当前值（次级文本色）
-        drawEndLabel(downloadLabel, near: point(samples.count - 1, { $0.rx }), above: true)
-        drawEndLabel(uploadLabel, near: point(samples.count - 1, { $0.tx }), above: false)
+        // 当前速率标注：两行叠放于右上角标注带内（下载在上、上传在下），与折线互不遮挡
+        drawTopLabel(downloadLabel, color: Self.downloadColor, line: 0)
+        drawTopLabel(uploadLabel, color: Self.uploadColor, line: 1)
     }
 
     private func drawSeries(_ color: NSColor, _ samples: [RateSample],
@@ -85,15 +86,17 @@ final class RateGraphView: NSView {
         path.stroke()
     }
 
-    private func drawEndLabel(_ text: String, near end: NSPoint, above: Bool) {
-        let font = NSFont.systemFont(ofSize: 10)
+    /// 顶部标注带内右上角叠放标注（line 0 = 第一行）；带在绘图区之外，折线不可达
+    private func drawTopLabel(_ text: String, color: NSColor, line: Int) {
+        guard !text.isEmpty else { return }
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         let size = (text as NSString).size(withAttributes: [.font: font])
-        let x = min(end.x - size.width - 4, bounds.maxX - size.width - 2)
-        let y = above ? min(end.y + 4, bounds.maxY - size.height)
-                      : max(end.y - size.height - 4, bounds.minY)
-        (text as NSString).draw(at: NSPoint(x: max(bounds.minX + 2, x), y: y), withAttributes: [
+        let lineHeight = size.height + 2
+        let x = bounds.maxX - size.width - 4
+        let y = bounds.maxY - size.height - 3 - CGFloat(line) * lineHeight
+        (text as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: [
             .font: font,
-            .foregroundColor: NSColor.secondaryLabelColor,
+            .foregroundColor: color,
         ])
     }
 }

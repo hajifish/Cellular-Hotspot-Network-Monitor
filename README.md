@@ -28,8 +28,8 @@
   <em>主页窗口：会话摘要、双接口卡片（含独立重置）、近 120 秒速率曲线</em>
 </p>
 <p align="center">
-  <img src="docs/assets/screenshot-menubar.png" alt="菜单栏：实时上行/下行速率" width="420"><br>
-  <em>菜单栏：实时速率与累计流量，档位显示模式任你切换</em>
+  <img src="docs/assets/screenshot-menubar.png" alt="菜单栏下拉：各模块累计流量与合计" width="420"><br>
+  <em>菜单栏下拉：Wi-Fi / iPhone 各模块累计与合计行，展示模式可切换</em>
 </p>
 
 ## 功能

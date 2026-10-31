@@ -9,6 +9,9 @@ xcuserdata/
 # macOS
 .DS_Store
 
+# Editor-local settings
+.vscode/
+
 # Xcode (if a project file is ever generated locally)
 DerivedData/
 *.xcuserstate

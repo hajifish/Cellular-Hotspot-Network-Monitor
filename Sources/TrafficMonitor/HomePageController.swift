@@ -22,6 +22,8 @@ final class HomePageController {
     private var summaryValues: [NSTextField] = []
     private var legendLabel: NSTextField!
     private var ringStatusLabel: NSTextField!
+    private var totalsChip: NSView!
+    private var ratesChip: NSView!
     private var ratesToggle: NSButton!
     private var ratesLabel: NSTextField!
     private var totalsToggle: NSButton!
@@ -73,6 +75,11 @@ final class HomePageController {
         return "\(s)s"
     }
 
+    /// 模块卡片累计单行文本（纯函数，可测）：↑上行 / ↓下行 横排
+    nonisolated static func totalLine(tx: UInt64, rx: UInt64) -> String {
+        "累计 ↑ \(ByteFormat.string(tx))  ↓ \(ByteFormat.string(rx))"
+    }
+
     /// 汇总条告警文案与状态（纯函数，可测）：
     /// 未设置 → 白色；已设置 → 橙色倒计时（剩余量 + 已用百分比）；已触发 → 红色
     nonisolated static func alertStrip(threshold: UInt64?, fired: Bool,
@@ -97,22 +104,29 @@ final class HomePageController {
         let content = visual
 
         // 顶部右侧：状态栏显示开关（累计流量在前、实时速率在后；都关 = 状态栏只显示图标）
+        // 选中项铺圆角胶囊底色 + 白色加粗，未选无底色灰字，一眼可辨
+        totalsChip = toggleChip()
+        totalsChip.frame = NSRect(x: 530, y: 422, width: 86, height: 26)
+        content.addSubview(totalsChip)
         totalsToggle = sphereToggle(action: #selector(toggleTotals))
-        totalsToggle.frame = NSRect(x: 538, y: 426, width: 18, height: 18)
-        content.addSubview(totalsToggle)
+        totalsToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
+        totalsChip.addSubview(totalsToggle)
         totalsLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
         totalsLabel.stringValue = "累计流量"
-        totalsLabel.frame = NSRect(x: 560, y: 428, width: 56, height: 16)
-        content.addSubview(totalsLabel)
+        totalsLabel.frame = NSRect(x: 28, y: 5, width: 54, height: 16)
+        totalsChip.addSubview(totalsLabel)
+        ratesChip = toggleChip()
+        ratesChip.frame = NSRect(x: 622, y: 422, width: 86, height: 26)
+        content.addSubview(ratesChip)
         ratesToggle = sphereToggle(action: #selector(toggleRates))
-        ratesToggle.frame = NSRect(x: 628, y: 426, width: 18, height: 18)
-        content.addSubview(ratesToggle)
+        ratesToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
+        ratesChip.addSubview(ratesToggle)
         ratesLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
         ratesLabel.stringValue = "实时速率"
-        ratesLabel.frame = NSRect(x: 650, y: 428, width: 56, height: 16)
-        content.addSubview(ratesLabel)
+        ratesLabel.frame = NSRect(x: 28, y: 5, width: 54, height: 16)
+        ratesChip.addSubview(ratesLabel)
         refreshToggles()
-        updateBaseViews.append(contentsOf: [totalsToggle, totalsLabel, ratesToggle, ratesLabel])
+        updateBaseViews.append(contentsOf: [totalsChip, ratesChip])
 
         // 左列汇总条：会话、总上传、总下载（流量告警移至右侧圆环面板）
         let strip = roundedCard(frame: NSRect(x: 24, y: 368, width: 456, height: 46))
@@ -133,36 +147,37 @@ final class HomePageController {
             summaryValues.append(value)
         }
 
-        // 左列接口卡片：上下堆叠；每卡两行——上行「标题 + 开始信息 + 重置」，下行「速率 + 累计」
+        // 左列接口卡片：左右并排（整块区域与外部布局不变）；每卡竖排——标题+开始信息 / 速率两行 / 累计两行
         let cardSpecs: [(InterfaceCategory, CGFloat)] = [
-            (.wifi, 274),
-            (.iphone, 180),
+            (.wifi, 24),
+            (.iphone, 259),
         ]
-        for (category, y) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: 24, y: y, width: 456, height: 86))
+        for (category, x) in cardSpecs {
+            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 182))
             content.addSubview(card)
             updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 18, y: 56, width: 240, height: 18)
+            title.frame = NSRect(x: 14, y: 150, width: 150, height: 18)
             let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-            meta.frame = NSRect(x: 258, y: 58, width: 160, height: 16)
-            meta.alignment = .right
+            meta.frame = NSRect(x: 14, y: 134, width: 193, height: 14)
             if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
                                        accessibilityDescription: "重置计量") {
                 let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
                 reset.isBordered = false
                 reset.contentTintColor = .secondaryLabelColor
-                reset.setFrameOrigin(NSPoint(x: 456 - 34, y: 54))
+                // 显式定框：默认按钮偏高会顶出卡片上边缘
+                reset.frame = NSRect(x: 181, y: 148, width: 26, height: 22)
                 reset.toolTip = "重置计量"
                 reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
                 card.contentView?.addSubview(reset)
             }
             let rate = makeLabel(size: 12, color: .labelColor, weight: .regular)
-            rate.frame = NSRect(x: 18, y: 12, width: 280, height: 40)
-            let total = makeLabel(size: 12, color: .secondaryLabelColor, weight: .regular)
-            total.frame = NSRect(x: 298, y: 26, width: 140, height: 20)
-            total.alignment = .right
+            rate.frame = NSRect(x: 14, y: 58, width: 193, height: 62)
+            // 累计单行横排：↑/↓ 同行（窄卡横向利用更合理；最宽量级也在可用宽度内）
+            let total = makeLabel(size: 13, color: .secondaryLabelColor, weight: .regular)
+            total.font = .monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+            total.frame = NSRect(x: 14, y: 20, width: 193, height: 20)
             total.lineBreakMode = .byClipping
             for label in [title, rate, total, meta] {
                 card.contentView?.addSubview(label)
@@ -267,6 +282,14 @@ final class HomePageController {
         return label
     }
 
+    /// 开关胶囊容器：选中态铺白色半透明底
+    private func toggleChip() -> NSView {
+        let chip = NSView()
+        chip.wantsLayer = true
+        chip.layer?.cornerRadius = 13
+        return chip
+    }
+
     /// 小圆球开关：选中=白色实心球，未选=空心环
     private func sphereToggle(action: Selector) -> NSButton {
         let button = NSButton(title: "", target: self, action: action)
@@ -303,9 +326,15 @@ final class HomePageController {
     private func refreshToggles() {
         styleSphere(ratesToggle, on: StatusBarPrefs.showRates)
         styleSphere(totalsToggle, on: StatusBarPrefs.showTotals)
-        // 文字常驻，仅用颜色深浅区分选中态
-        ratesLabel.textColor = StatusBarPrefs.showRates ? .labelColor : .secondaryLabelColor
-        totalsLabel.textColor = StatusBarPrefs.showTotals ? .labelColor : .secondaryLabelColor
+        // 选中 = 胶囊底 + 纯白加粗，未选 = 无底 + 次要灰常规
+        totalsChip.layer?.backgroundColor = StatusBarPrefs.showTotals
+            ? NSColor.white.withAlphaComponent(0.14).cgColor : NSColor.clear.cgColor
+        totalsLabel.font = .systemFont(ofSize: 11, weight: StatusBarPrefs.showTotals ? .semibold : .regular)
+        totalsLabel.textColor = StatusBarPrefs.showTotals ? .white : .secondaryLabelColor
+        ratesChip.layer?.backgroundColor = StatusBarPrefs.showRates
+            ? NSColor.white.withAlphaComponent(0.14).cgColor : NSColor.clear.cgColor
+        ratesLabel.font = .systemFont(ofSize: 11, weight: StatusBarPrefs.showRates ? .semibold : .regular)
+        ratesLabel.textColor = StatusBarPrefs.showRates ? .white : .secondaryLabelColor
     }
 
     // MARK: - 按模块重置
@@ -485,15 +514,16 @@ final class HomePageController {
 
             let down = ByteFormat.rateParts(rate.rx)
             let up = ByteFormat.rateParts(rate.tx)
+            // 卡片为窄卡竖排：↓/↑ 速率各占一行
             let rateText = NSMutableAttributedString(attributedString: Self.attributedRate(
                 arrow: "↓", accent: Self.downloadAccent,
                 value: down.value, unit: down.unit, numberSize: 19, unitSize: 11))
-            rateText.append(NSAttributedString(string: "   "))
+            rateText.append(NSAttributedString(string: "\n"))
             rateText.append(Self.attributedRate(
                 arrow: "↑", accent: Self.uploadAccent,
                 value: up.value, unit: up.unit, numberSize: 19, unitSize: 11))
             labels.rate.attributedStringValue = rateText
-            labels.total.stringValue = "累计  ↑ \(ByteFormat.string(usage.tx))    ↓ \(ByteFormat.string(usage.rx))"
+            labels.total.stringValue = Self.totalLine(tx: usage.tx, rx: usage.rx)
         }
 
         // 会话/告警汇总
