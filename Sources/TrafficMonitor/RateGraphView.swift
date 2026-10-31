@@ -58,9 +58,9 @@ final class RateGraphView: NSView {
         drawSeries(Self.downloadColor, samples, point, { $0.rx }, areaFill: true)
         drawSeries(Self.uploadColor, samples, point, { $0.tx }, areaFill: false)
 
-        // 线端直接标注当前值（次级文本色）
-        drawEndLabel(downloadLabel, near: point(samples.count - 1, { $0.rx }), above: true)
-        drawEndLabel(uploadLabel, near: point(samples.count - 1, { $0.tx }), above: false)
+        // 当前速率标注：位置固定（下载=右上、上传=右下），不随线端移动，避免被折线穿过
+        drawCornerLabel(downloadLabel, color: Self.downloadColor, atTop: true)
+        drawCornerLabel(uploadLabel, color: Self.uploadColor, atTop: false)
     }
 
     private func drawSeries(_ color: NSColor, _ samples: [RateSample],
@@ -85,15 +85,16 @@ final class RateGraphView: NSView {
         path.stroke()
     }
 
-    private func drawEndLabel(_ text: String, near end: NSPoint, above: Bool) {
-        let font = NSFont.systemFont(ofSize: 10)
+    /// 角落固定标注（右上/右下），用系列色与底部图例呼应
+    private func drawCornerLabel(_ text: String, color: NSColor, atTop: Bool) {
+        guard !text.isEmpty else { return }
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         let size = (text as NSString).size(withAttributes: [.font: font])
-        let x = min(end.x - size.width - 4, bounds.maxX - size.width - 2)
-        let y = above ? min(end.y + 4, bounds.maxY - size.height)
-                      : max(end.y - size.height - 4, bounds.minY)
-        (text as NSString).draw(at: NSPoint(x: max(bounds.minX + 2, x), y: y), withAttributes: [
+        let x = bounds.maxX - size.width - 4
+        let y = atTop ? bounds.maxY - size.height - 2 : bounds.minY + 2
+        (text as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: [
             .font: font,
-            .foregroundColor: NSColor.secondaryLabelColor,
+            .foregroundColor: color,
         ])
     }
 }
