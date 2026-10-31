@@ -33,7 +33,8 @@ final class RateGraphView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let history else { return }
-        let plot = bounds.insetBy(dx: 8, dy: 10)
+        // 顶部预留 34pt 标注带（两行速率值叠放），折线绘图区永远到不了
+        let plot = NSRect(x: 8, y: 10, width: bounds.width - 16, height: bounds.height - 44)
         let samples = history.samples
         let maxRate = Self.niceMaximum(samples.map { max($0.rx, $0.tx) }.max() ?? 1)
 
@@ -58,9 +59,9 @@ final class RateGraphView: NSView {
         drawSeries(Self.downloadColor, samples, point, { $0.rx }, areaFill: true)
         drawSeries(Self.uploadColor, samples, point, { $0.tx }, areaFill: false)
 
-        // 当前速率标注：位置固定（下载=右上、上传=右下），不随线端移动，避免被折线穿过
-        drawCornerLabel(downloadLabel, color: Self.downloadColor, atTop: true)
-        drawCornerLabel(uploadLabel, color: Self.uploadColor, atTop: false)
+        // 当前速率标注：两行叠放于右上角标注带内（下载在上、上传在下），与折线互不遮挡
+        drawTopLabel(downloadLabel, color: Self.downloadColor, line: 0)
+        drawTopLabel(uploadLabel, color: Self.uploadColor, line: 1)
     }
 
     private func drawSeries(_ color: NSColor, _ samples: [RateSample],
@@ -85,13 +86,14 @@ final class RateGraphView: NSView {
         path.stroke()
     }
 
-    /// 角落固定标注（右上/右下），用系列色与底部图例呼应
-    private func drawCornerLabel(_ text: String, color: NSColor, atTop: Bool) {
+    /// 顶部标注带内右上角叠放标注（line 0 = 第一行）；带在绘图区之外，折线不可达
+    private func drawTopLabel(_ text: String, color: NSColor, line: Int) {
         guard !text.isEmpty else { return }
         let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         let size = (text as NSString).size(withAttributes: [.font: font])
+        let lineHeight = size.height + 2
         let x = bounds.maxX - size.width - 4
-        let y = atTop ? bounds.maxY - size.height - 2 : bounds.minY + 2
+        let y = bounds.maxY - size.height - 3 - CGFloat(line) * lineHeight
         (text as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: [
             .font: font,
             .foregroundColor: color,
