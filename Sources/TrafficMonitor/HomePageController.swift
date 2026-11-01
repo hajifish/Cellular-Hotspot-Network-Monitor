@@ -225,7 +225,7 @@ final class HomePageController {
         updateVersionLabel.stringValue = "v\(AppVersion.current)"
         content.addSubview(updateVersionLabel)
 
-        // 软件更新卡片：仅在有更新进行时展开（默认隐藏）
+        // 软件更新卡片：仅在有更新进行时展开，检查失败也展开——显示原因 + 「重试」（默认隐藏）
         let updateCard = roundedCard(frame: NSRect(x: 24, y: 8, width: 672, height: 76))
         content.addSubview(updateCard)
         updateCardBox = updateCard
@@ -354,7 +354,8 @@ final class HomePageController {
 
     // MARK: - 软件更新卡片
 
-    /// 服务状态变化与每秒刷新共用；只有真正有更新进行时才展开卡片框架，
+    /// 服务状态变化与每秒刷新共用；只有真正有更新进行时才展开卡片框架
+    /// （检查失败也展开——显示原因 + 「重试」，不再静默，2026-11-01 修复），
     /// 否则窗口保持原高，仅图例行右端展示当前版本号小字
     func refreshUpdateCard() {
         updateVersionLabel.stringValue = "v\(AppVersion.current)"
@@ -414,7 +415,7 @@ final class HomePageController {
         switch updateService.state {
         case .available: updateService.startDownload()
         case .downloaded: updateService.installNow()
-        default: updateService.checkNow()
+        default: updateService.checkNow(manual: true) // 失败卡片的「重试」：手动口径
         }
     }
 
