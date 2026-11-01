@@ -81,7 +81,8 @@ final class UpdateService {
         guard !isBusy else {
             // 收编在途检查为手动（issue #21）：自动轮询在途时用户手动点「检查更新」，
             // 结束后按手动口径反馈「已是最新」；仅 .checking 态收编——.downloading/.installing
-            // 没有 fetch 在途，置位会泄漏到下一次检查误发通知
+            // 无 fetch 在途可收编，置位只会留下不被任何 finishCheck 消费的死状态
+            // （manualCheckInFlight 在每次非 busy checkNow 开头被无条件覆写，不存在泄漏路径）
             if manual, case .checking = state { manualCheckInFlight = true }
             return
         }
@@ -131,7 +132,7 @@ final class UpdateService {
         UNUserNotificationCenter.current().add(request) { error in
             // 投递失败记 error 级日志（菜单/主页仍有入口，但失败必须可检索）
             if let error {
-                Self.logger.error("update notification delivery failed: \(String(describing: error), privacy: .public)")
+                Self.logger.error("update notification delivery failed (\(release.tagName, privacy: .public)): \(String(describing: error), privacy: .public)")
             } else {
                 Self.logger.debug("update notification delivered: \(release.tagName, privacy: .public)")
             }
