@@ -3,7 +3,7 @@ import Foundation
 /// 检查/安装阶段可归类的失败
 enum UpdateError: Error, Equatable {
     case badResponse      // 非 HTTP 响应或 spawn 失败
-    case apiError(Int)    // GitHub 返回非 2xx（403 = 限流）
+    case apiError(Int)    // GitHub 返回非 2xx（403/429 = 限流）
     case assetMissing     // Release 无可用 zip 资产
     case versionMismatch  // 新包版本与 tag 不符，拒绝安装
     case devBuild         // 开发构建不支持应用内更新
@@ -21,9 +21,10 @@ struct GithubReleaseChecker: UpdateChecking {
         self.repository = repository
     }
 
-    /// 诊断/验证用：TRAFFICMONITOR_UPDATE_TIMEOUT=1 时不发任何网络请求，
-    /// 直接以连接超时失败——用于目检失败可见性 UI（菜单「· 失败」+ 主页卡片），
-    /// 无需断网。正常使用不设置该环境变量
+    /// 诊断/验证用：TRAFFICMONITOR_UPDATE_TIMEOUT=1 时短路为连接超时失败——用于
+    /// 目检失败可见性 UI（菜单「· 失败」+ 主页卡片），无需断网。短路仅在
+    /// fetchLatestRelease；fetchLatestRaw/redirectProbe 不检查该变量。
+    /// 正常使用不设置该环境变量
     static var simulatesTimeout: Bool {
         ProcessInfo.processInfo.environment["TRAFFICMONITOR_UPDATE_TIMEOUT"] == "1"
     }
@@ -47,11 +48,8 @@ struct GithubReleaseChecker: UpdateChecking {
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         URLSession.shared.dataTask(with: request) { data, response, error in
-            let result = Self.decodeLatestResponse(data: data, response: response, error: error)
-            if case .failure(let error) = result, shouldFallbackToRedirectProbe(error) {
-                return redirectProbe(repository: repository, completion: completion)
-            }
-            completion(result)
+            Self.route(Self.decodeLatestResponse(data: data, response: response, error: error),
+                       repository: repository, completion: completion)
         }.resume()
     }
 
@@ -76,9 +74,24 @@ struct GithubReleaseChecker: UpdateChecking {
         return false
     }
 
+    /// 降级探测闭包（可注入 spy/stub 以离线验证路由决策）
+    typealias RedirectProbe = (_ repository: String,
+                               _ completion: @escaping (Result<ReleaseInfo, Error>) -> Void) -> Void
+
+    /// API 结果 → 下一步路由：仅限流类失败（403/429）转降级探测，其余结果原样回调。
+    /// probe 参数化，路由决策可离线验证
+    static func route(_ result: Result<ReleaseInfo, Error>, repository: String,
+                      probe: RedirectProbe = { GithubReleaseChecker.redirectProbe(repository: $0, completion: $1) },
+                      completion: @escaping (Result<ReleaseInfo, Error>) -> Void) {
+        if case .failure(let error) = result, shouldFallbackToRedirectProbe(error) {
+            return probe(repository, completion)
+        }
+        completion(result)
+    }
+
     /// 降级探测：GET 网页端点 releases/latest（不受 API 配额限制），URLSession 跟随
-    /// 302 落在 …/releases/tag/{tag}，从最终 URL 构造最小 ReleaseInfo；探测自身
-    /// 失败则如实回调其错误
+    /// 302 落在 …/releases/tag/{tag}，从最终 URL 构造最小 ReleaseInfo。仅传输层错误
+    /// 原样回调；状态码/落点异常归一为 apiError/badResponse（见 handleProbeResponse）
     static func redirectProbe(repository: String,
                               completion: @escaping (Result<ReleaseInfo, Error>) -> Void) {
         guard let url = URL(string: "https://github.com/\(repository)/releases/latest") else {
@@ -86,14 +99,27 @@ struct GithubReleaseChecker: UpdateChecking {
         }
         var request = URLRequest(url: url, timeoutInterval: 10)
         URLSession.shared.dataTask(with: request) { _, response, error in
-            if let error { return completion(.failure(error)) }
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  let finalURL = http.url ?? response?.url,
-                  let info = releaseInfo(fromRedirectURL: finalURL, repository: repository) else {
-                return completion(.failure(UpdateError.badResponse))
-            }
-            completion(.success(info))
+            completion(Self.handleProbeResponse(response: response, error: error, repository: repository))
         }.resume()
+    }
+
+    /// 探测响应 → Result（独立于传输，便于直测）：传输层错误原样失败；非 HTTP 响应
+    /// → badResponse；非 2xx → apiError(状态码)；2xx 非 tag 页落点 → badResponse；
+    /// tag 页落点 → 最小 ReleaseInfo
+    static func handleProbeResponse(response: URLResponse?, error: Error?, repository: String)
+        -> Result<ReleaseInfo, Error> {
+        if let error { return .failure(error) }
+        guard let http = response as? HTTPURLResponse else {
+            return .failure(UpdateError.badResponse)
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            return .failure(UpdateError.apiError(http.statusCode))
+        }
+        guard let finalURL = http.url ?? response?.url,
+              let info = releaseInfo(fromRedirectURL: finalURL, repository: repository) else {
+            return .failure(UpdateError.badResponse)
+        }
+        return .success(info)
     }
 
     /// tag 页 URL（…/releases/tag/{tag}）→ 最小 ReleaseInfo：body 为 nil（发布说明
