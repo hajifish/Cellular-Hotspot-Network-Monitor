@@ -1,7 +1,7 @@
 # 更新检查静默失败修复设计 — 失败可见性 + API 限流降级探测
 
 日期：2026-11-01
-状态：待确认
+状态：已确认并实施（PR #19）
 前置设计：[2026-10-29-auto-update-design.md](2026-10-29-auto-update-design.md)（本次为其失败处理矩阵与限额假设的修订）
 
 ## 背景（本次事故时间线）
@@ -20,8 +20,9 @@
 
 | 决策点 | 结论 |
 |---|---|
-| 失败可见性（主页） | `wantsCard(.failed)` 改为 true：检查失败时展开主页卡片，显示错误原因 + 「重试」主按钮（恢复前置设计矩阵原意；按钮复用现有 `updatePrimaryAction` 的 `default → checkNow()` 分支，零接线） |
+| 失败可见性（主页） | `wantsCard(.failed)` 改为 true：检查失败时展开主页卡片，显示错误原因 + 「重试」主按钮（恢复前置设计矩阵原意；按钮复用现有 `updatePrimaryAction` 的 `default → checkNow(manual: true)` 分支，零接线） |
 | 失败可见性（菜单） | `menuCheckTitle(.failed)` → 「检查更新 · 失败」。对 2026-10-30「菜单栏不展示任何更新内容」决策的再放宽：available 状态已有「· 有新版本」先例，且菜单仅在用户下拉时可见，非常驻打扰 |
+| `.failed` 态点击菜单「检查更新」（涌现行为） | `wantsCard(.failed)` 翻转为 true 后，`checkUpdatesAction` 按 `wantsCard` 分流 → 点击走 `openHome()` 展示失败卡片，**不直接发起检查**；「重试」入口在卡片上（两次交互完成重试）。系本次改动的连带效应，记录为**接受的取舍**：失败态在菜单后缀已可见，卡片首屏即给原因与重试，未为 `.failed` 加菜单特判 |
 | 限流降级通道 | API 命中 403/429 时，二段探测 `GET https://github.com/{repo}/releases/latest`（**网页端点，不走 API 配额**）：URLSession 默认跟随 302，最终 `response.url` 形如 `…/releases/tag/{tagName}`，从中解析 tag |
 | 降级通道的 ReleaseInfo | 构造最小信息：`tagName` = 解析值；`htmlUrl` = tag 页；`body` = nil（发布说明不可得，卡片备注自动回退为「上次检查时间」）；`assets` = 按命名规则构造的单个 zip（`TrafficMonitor-{去v版本}.zip`，下载地址 `releases/download/{tag}/…`），与 `selectAsset` 的优先匹配规则及打包工作流的确定性命名一致 |
 | 降级失败的口径 | 探测自身也失败（断网等）→ 传播探测的错误文案计入 `.failed`（此时失败已可见，不再静默） |
@@ -39,7 +40,7 @@
 
 ## 测试（并入 `TRAFFICMONITOR_SELFTEST`）
 
-- `UpdatePresentationTests`：`wantsCard(.failed) == true`；`menuCheckTitle(.failed) == "检查更新 · 失败"`；`menuCheckTitle(.upToDate) == "检查更新 · 已是最新"`（`.idle` 维持「检查更新」）；`cardContent(.failed)` 的 `primary == "重试"`、notes 含错误文案。
+- `UpdatePresentationTests`：`wantsCard(.failed) == true`；`menuCheckTitle(.failed) == "检查更新 · 失败"`；`menuCheckTitle(.upToDate) == "检查更新 · 已是最新"`（`.idle` 维持「检查更新」）；`menuCheckTitle(.installing) == "检查更新 · 有新版本"`；`cardContent(.failed)` 的 `primary == "重试"`、notes 含错误文案；降级形态的 `cardContent(.available)`（ReleaseInfo `body = nil`）备注回退「上次检查」。
 - `UpdateServiceTests`：手动 `checkNow(manual: true)` 得出 upToDate → 触发 upToDate 通知（注入 spy 断言）；自动检查（默认参数）得出 upToDate → 不触发。
 - `UpdateCheckerTests` 新增纯函数直测：`shouldFallbackToRedirectProbe`（403/429 是、超时/5xx 否）；`releaseInfo(fromRedirectURL:repository:)`（`/releases/tag/v1.2.3` → tag `v1.2.3`、资产名 `TrafficMonitor-1.2.3.zip`、下载 URL 正确；非 tag 页 URL → nil）。
 - 实时集成：`liveRedirectProbe` 请求真实 `github.com/…/releases/latest`，断言最终 URL 可解析出 tag（网络不可用环境跳过，与 `liveGithubLatest` 同风格）。

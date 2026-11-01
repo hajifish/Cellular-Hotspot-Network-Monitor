@@ -5,6 +5,7 @@ enum UpdatePresentationTests {
     static func all() {
         wantsCardOnlyForActiveStates()
         cardAvailableShowsUpdateActions()
+        cardAvailableDegradedFallsBackToLastCheck()
         cardProgressAndRestartStates()
         cardFailedOffersRetry()
         menuCheckTitleReflectsState()
@@ -36,6 +37,18 @@ enum UpdatePresentationTests {
         TestRun.expect(available.kind == .attention, "attention kind")
         TestRun.expectEqual(available.primary, "下载并更新", "primary action")
         TestRun.expectEqual(available.secondary, "打开发布页", "secondary action")
+    }
+
+    /// 降级通道构造的 ReleaseInfo（body = nil，发布说明不可得）：
+    /// 卡片备注回退为「上次检查」时间，下载/发布页操作不受影响
+    static func cardAvailableDegradedFallsBackToLastCheck() {
+        let degraded = ReleaseInfo(tagName: "v0.6.0", htmlUrl: "https://example.com/r/v0.6.0",
+                                   body: nil, assets: [])
+        let available = UpdatePresentation.cardContent(for: .available(degraded), currentVersion: "0.5.0",
+                                                       lastCheck: Date(timeIntervalSince1970: 1_767_225_600),
+                                                       errorText: nil)
+        TestRun.expect(available.notes.contains("上次检查"), "degraded release falls back to last-check note")
+        TestRun.expectEqual(available.primary, "下载并更新", "degraded release keeps download action")
     }
 
     static func cardProgressAndRestartStates() {
@@ -71,5 +84,7 @@ enum UpdatePresentationTests {
                        "downloading badge")
         TestRun.expect(UpdatePresentation.menuCheckTitle(for: .downloaded(release("v0.3.0"))).hasSuffix("有新版本"),
                        "downloaded badge")
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .installing), "检查更新 · 有新版本",
+                            "installing badge")
     }
 }

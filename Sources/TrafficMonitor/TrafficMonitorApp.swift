@@ -408,7 +408,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         }
     }
 
-    // MARK: - 软件更新（主页卡片是唯一更新入口，菜单栏不展示更新内容）
+    // MARK: - 软件更新（主页卡片是唯一升级操作入口；菜单条目仅以状态后缀提示）
 
     /// 下载完成后的确认弹窗（用户决策：确认后才换包重启）
     private func showRestartConfirm(release: ReleaseInfo, completion: @escaping (Bool) -> Void) {
@@ -425,8 +425,9 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         homeController.show()
     }
 
-    /// 「检查更新」：已知有新版本（手动或自动检测到）→ 直达主页升级界面；
-    /// 否则发起一次手动检查（得出「已是最新」时发通知，与自动轮询区分）
+    /// 「检查更新」路由与 `wantsCard` 耦合：`.available/.downloading/.downloaded/.installing/.failed`
+    /// 这些有卡片态 → 直达主页（`.failed` 展示失败卡片，「重试」入口在卡片上，此处不发起检查）；
+    /// `.idle/.checking/.upToDate` 才发起一次手动检查（得出「已是最新」时发通知，与自动轮询区分）
     @objc private func checkUpdatesAction() {
         if UpdatePresentation.wantsCard(for: updateService.state) {
             openHome()

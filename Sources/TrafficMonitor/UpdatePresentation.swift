@@ -1,8 +1,10 @@
 import Foundation
 
 /// 主页「软件更新」卡片的展示映射（纯函数，可测）；着色等 AppKit 细节在 UI 层完成。
-/// 菜单栏不展示任何更新内容——主页卡片是唯一更新入口（用户决策 2026-10-30）。
-/// 无更新时卡片整体收起，仅在图例行右端以小字展示版本号。
+/// 卡片仅在有更新进行时展开，检查失败也展开（显示原因 + 重试）；无更新时整体收起，
+/// 仅在图例行右端以小字展示版本号。菜单栏不展示升级操作，仅在「检查更新」条目上
+/// 追加状态后缀（有新版本 / 失败 / 已是最新）——「菜单栏不展示任何更新内容」的
+/// 2026-10-30 决策，经菜单后缀先例与 2026-11-01 失败可见性修复两度放宽。
 enum UpdatePresentation {
     /// 是否需要展示更新卡片（真正有更新进行时才出现框架）；
     /// 检查失败例外——展开显示原因与重试，不再静默（2026-11-01 修复）
@@ -14,7 +16,9 @@ enum UpdatePresentation {
     }
 
     /// 菜单「检查更新」条目文字：有新版本 / 失败 / 已是最新分别追加后缀（仅下拉时可见）；
-    /// 点击该条目时若有新版本则直达主页升级界面，否则发起检查
+    /// 点击路由与 `wantsCard` 一致：`.available/.downloading/.downloaded/.installing/.failed`
+    /// 直达主页（`.failed` 展示失败卡片，「重试」在卡片上，不直接发起检查），
+    /// `.idle/.checking/.upToDate` 才发起一次手动检查
     static func menuCheckTitle(for state: UpdateState) -> String {
         switch state {
         case .available, .downloading, .downloaded, .installing:
