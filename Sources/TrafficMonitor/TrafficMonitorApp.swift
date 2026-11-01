@@ -426,12 +426,12 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     /// 「检查更新」：已知有新版本（手动或自动检测到）→ 直达主页升级界面；
-    /// 否则发起一次检查，发现新版本后条目文字追加「有新版本」（refresh 驱动）
+    /// 否则发起一次手动检查（得出「已是最新」时发通知，与自动轮询区分）
     @objc private func checkUpdatesAction() {
         if UpdatePresentation.wantsCard(for: updateService.state) {
             openHome()
         } else {
-            updateService.checkNow()
+            updateService.checkNow(manual: true)
         }
     }
 

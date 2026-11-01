@@ -414,7 +414,7 @@ final class HomePageController {
         switch updateService.state {
         case .available: updateService.startDownload()
         case .downloaded: updateService.installNow()
-        default: updateService.checkNow()
+        default: updateService.checkNow(manual: true) // 失败卡片的「重试」：手动口径
         }
     }
 

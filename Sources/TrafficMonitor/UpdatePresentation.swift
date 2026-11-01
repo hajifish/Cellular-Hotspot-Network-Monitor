@@ -4,15 +4,16 @@ import Foundation
 /// 菜单栏不展示任何更新内容——主页卡片是唯一更新入口（用户决策 2026-10-30）。
 /// 无更新时卡片整体收起，仅在图例行右端以小字展示版本号。
 enum UpdatePresentation {
-    /// 是否需要展示更新卡片（真正有更新进行时才出现框架）
+    /// 是否需要展示更新卡片（真正有更新进行时才出现框架）；
+    /// 检查失败例外——展开显示原因与重试，不再静默（2026-11-01 修复）
     static func wantsCard(for state: UpdateState) -> Bool {
         switch state {
-        case .available, .downloading, .downloaded, .installing: return true
-        case .idle, .checking, .upToDate, .failed: return false
+        case .available, .downloading, .downloaded, .installing, .failed: return true
+        case .idle, .checking, .upToDate: return false
         }
     }
 
-    /// 菜单「检查更新」条目文字：检测到新版本（手动点击或自动检测）时追加「有新版本」；
+    /// 菜单「检查更新」条目文字：有新版本 / 失败 / 已是最新分别追加后缀（仅下拉时可见）；
     /// 点击该条目时若有新版本则直达主页升级界面，否则发起检查
     static func menuCheckTitle(for state: UpdateState) -> String {
         switch state {
@@ -20,7 +21,11 @@ enum UpdatePresentation {
             return "检查更新 · 有新版本"
         case .checking:
             return "正在检查更新…"
-        case .idle, .upToDate, .failed:
+        case .upToDate:
+            return "检查更新 · 已是最新"
+        case .failed:
+            return "检查更新 · 失败"
+        case .idle:
             return "检查更新"
         }
     }
@@ -56,7 +61,7 @@ enum UpdatePresentation {
                                primary: "下载并更新", secondary: "打开发布页")
         case .failed:
             return CardContent(status: "当前版本 \(currentVersion)", kind: .error,
-                               notes: errorText ?? "", primary: nil, secondary: nil)
+                               notes: errorText ?? "", primary: "重试", secondary: nil)
         case .downloading(let progress):
             return CardContent(status: "正在下载更新 \(Int(progress * 100))%", kind: .attention,
                                notes: "", primary: nil, secondary: "取消下载")

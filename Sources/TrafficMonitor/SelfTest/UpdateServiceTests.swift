@@ -53,6 +53,8 @@ enum UpdateServiceTests {
         checkFindsNewerVersion()
         checkUpToDate()
         checkFailureStoresError()
+        manualUpToDateNotifies()
+        autoUpToDateStaysQuiet()
         downloadShowsProgressThenStages()
         downloadFailureReturnsToAvailable()
         downloadCancelIsQuiet()
@@ -82,6 +84,7 @@ enum UpdateServiceTests {
         service.exitHandler = { exitCode.pointee = $0 }
         service.confirmRestartHandler = { _, completion in completion(true) } // 默认确认
         service.versionAvailableNotifier = { _ in } // 无 bundle 环境下系统通知会崩，注入 no-op
+        service.upToDateNotifier = { } // 同上：手动「已是最新」通知默认实现不可在自测直跑
         return (service, checker, installer, exitCode)
     }
 
@@ -110,6 +113,25 @@ enum UpdateServiceTests {
             return TestRun.expect(false, "expected failed, got \(service.state)")
         }
         TestRun.expectEqual(message, "网络不可用或连接超时", "error text")
+    }
+
+    /// 手动检查得出「已是最新」→ 发一条通知（用户决策 2026-11-01）；自动检查静默
+    static func manualUpToDateNotifies() {
+        let (service, _, _, _) = makeService(release: .success(makeRelease("0.0.0")))
+        var notified = 0
+        service.upToDateNotifier = { notified += 1 }
+        service.checkNow(manual: true)
+        TestRun.expect(service.state == .upToDate, "manual check → upToDate")
+        TestRun.expectEqual(notified, 1, "manual up-to-date notifies once")
+    }
+
+    static func autoUpToDateStaysQuiet() {
+        let (service, _, _, _) = makeService(release: .success(makeRelease("0.0.0")))
+        var notified = 0
+        service.upToDateNotifier = { notified += 1 }
+        service.checkNow() // 启动 10s / 每 6h 轮询的默认路径
+        TestRun.expect(service.state == .upToDate, "auto check → upToDate")
+        TestRun.expectEqual(notified, 0, "auto up-to-date stays quiet")
     }
 
     static func downloadShowsProgressThenStages() {

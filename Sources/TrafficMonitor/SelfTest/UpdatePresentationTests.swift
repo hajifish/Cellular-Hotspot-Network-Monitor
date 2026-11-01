@@ -6,6 +6,7 @@ enum UpdatePresentationTests {
         wantsCardOnlyForActiveStates()
         cardAvailableShowsUpdateActions()
         cardProgressAndRestartStates()
+        cardFailedOffersRetry()
         menuCheckTitleReflectsState()
     }
 
@@ -14,13 +15,15 @@ enum UpdatePresentationTests {
                     body: "修复若干问题", assets: [])
     }
 
-    /// 只有真正有更新进行时才出现卡片框架；无更新（含检查失败）一律收起
+    /// 只有真正有更新进行时才出现卡片框架；无更新时收起；
+    /// 检查失败例外——展开显示原因与重试（2026-11-01 静默失败修复）
     static func wantsCardOnlyForActiveStates() {
         TestRun.expect(UpdatePresentation.wantsCard(for: .available(release("v0.3.0"))), "available → card")
         TestRun.expect(UpdatePresentation.wantsCard(for: .downloading(0.5)), "downloading → card")
         TestRun.expect(UpdatePresentation.wantsCard(for: .downloaded(release("v0.3.0"))), "downloaded → card")
         TestRun.expect(UpdatePresentation.wantsCard(for: .installing), "installing → card")
-        for state in [UpdateState.idle, .checking, .upToDate, .failed("x")] {
+        TestRun.expect(UpdatePresentation.wantsCard(for: .failed("x")), "failed → card (reason visible)")
+        for state in [UpdateState.idle, .checking, .upToDate] {
             TestRun.expect(!UpdatePresentation.wantsCard(for: state), "\(state) → no card")
         }
     }
@@ -47,11 +50,20 @@ enum UpdatePresentationTests {
         TestRun.expectEqual(downloaded.secondary, "取消更新", "cancel offered")
     }
 
-    /// 菜单「检查更新」条目文字：检测到新版本（手动或自动）追加「有新版本」
+    /// 失败卡片：展开显示原因 + 「重试」（主按钮 default 分支即 checkNow，零接线）
+    static func cardFailedOffersRetry() {
+        let failed = UpdatePresentation.cardContent(for: .failed("x"), currentVersion: "0.2.0",
+                                                    lastCheck: nil, errorText: "GitHub 接口限流，请稍后再试")
+        TestRun.expectEqual(failed.primary, "重试", "failed → retry action")
+        TestRun.expect(failed.notes.contains("限流"), "failure reason visible")
+        TestRun.expect(failed.kind == .error, "error kind")
+    }
+
+    /// 菜单「检查更新」条目文字：有新版本/失败/已是最新分别追加后缀（仅下拉时可见）
     static func menuCheckTitleReflectsState() {
         TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .idle), "检查更新", "idle plain")
-        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .upToDate), "检查更新", "upToDate plain")
-        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .failed("x")), "检查更新", "failed plain")
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .upToDate), "检查更新 · 已是最新", "upToDate badge")
+        TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .failed("x")), "检查更新 · 失败", "failed badge")
         TestRun.expectEqual(UpdatePresentation.menuCheckTitle(for: .checking), "正在检查更新…", "checking feedback")
         TestRun.expect(UpdatePresentation.menuCheckTitle(for: .available(release("v0.3.0"))).hasSuffix("有新版本"),
                        "available badge")

@@ -45,6 +45,10 @@ final class UpdateService {
     /// 测试注入点：发现新版本时的系统通知（UNUserNotificationCenter 在无 bundle 的
     /// 自测二进制里会直接抛异常，故不可用默认实现直接跑自测）
     var versionAvailableNotifier: (ReleaseInfo) -> Void = UpdateService.postUpdateNotification
+    /// 测试注入点：手动检查得出「已是最新」时的系统通知（同上，自测注入覆盖）
+    var upToDateNotifier: () -> Void = UpdateService.postUpToDateNotification
+    /// 本次检查是否由用户手动触发（决定「已是最新」是否打扰）
+    private var manualCheckInFlight = false
 
     private let checker: UpdateChecking
     private let installer: UpdateDownloading
@@ -67,8 +71,11 @@ final class UpdateService {
 
     // MARK: 检查
 
-    func checkNow() {
+    /// - Parameter manual: 用户手动触发（菜单/主页按钮）。仅手动检查得出「已是最新」
+    ///   时发系统通知；自动检查（启动 10s / 每 6h）静默，避免打扰
+    func checkNow(manual: Bool = false) {
         guard !isBusy else { return }
+        manualCheckInFlight = manual
         state = .checking
         emit()
         checker.fetchLatestRelease { [weak self] result in
@@ -91,8 +98,10 @@ final class UpdateService {
             } else {
                 lastError = nil
                 state = .upToDate
+                if manualCheckInFlight { upToDateNotifier() }
             }
         }
+        manualCheckInFlight = false
         emit()
     }
 
@@ -110,6 +119,16 @@ final class UpdateService {
         content.sound = .default
         let request = UNNotificationRequest(identifier: "update-\(release.tagName)", content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { _ in } // 通知不可用时静默：菜单/主页仍有入口
+    }
+
+    /// 手动检查确认已是最新：轻量通知告知即可。identifier 不带 "update-" 前缀，
+    /// 点击不跳主页（无升级内容可看）
+    static func postUpToDateNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "Traffic Monitor 已是最新版本"
+        content.body = "当前 \(AppVersion.current) 即最新发布版。"
+        let request = UNNotificationRequest(identifier: "uptodate-check", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { _ in } // 通知不可用时静默：菜单后缀仍有反馈
     }
 
     // MARK: 下载
