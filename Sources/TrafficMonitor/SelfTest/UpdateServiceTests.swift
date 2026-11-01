@@ -3,11 +3,22 @@ import Foundation
 /// 同步 fake：completion 直接在调用线程回调（服务契约是"主线程回调"，自测在主线程）
 final class FakeChecker: UpdateChecking {
     var result: Result<ReleaseInfo, Error>
+    /// true 时挂起 completion，用 resolveCheck() 手动收尾（模拟自动检查在途）
+    var deferredCheck = false
+    private var pendingCompletion: ((Result<ReleaseInfo, Error>) -> Void)?
     private(set) var callCount = 0
     init(result: Result<ReleaseInfo, Error>) { self.result = result }
     func fetchLatestRelease(completion: @escaping (Result<ReleaseInfo, Error>) -> Void) {
         callCount += 1
-        completion(result)
+        if deferredCheck {
+            pendingCompletion = completion
+        } else {
+            completion(result)
+        }
+    }
+    func resolveCheck() {
+        pendingCompletion?(result)
+        pendingCompletion = nil
     }
 }
 
@@ -53,6 +64,10 @@ enum UpdateServiceTests {
         checkFindsNewerVersion()
         checkUpToDate()
         checkFailureStoresError()
+        manualUpToDateNotifies()
+        autoUpToDateStaysQuiet()
+        manualCheckDuringAutoCheckIsAdopted()
+        manualFlagDoesNotLeakIntoLaterAutoChecks()
         downloadShowsProgressThenStages()
         downloadFailureReturnsToAvailable()
         downloadCancelIsQuiet()
@@ -82,6 +97,7 @@ enum UpdateServiceTests {
         service.exitHandler = { exitCode.pointee = $0 }
         service.confirmRestartHandler = { _, completion in completion(true) } // 默认确认
         service.versionAvailableNotifier = { _ in } // 无 bundle 环境下系统通知会崩，注入 no-op
+        service.upToDateNotifier = { } // 同上：手动「已是最新」通知默认实现不可在自测直跑
         return (service, checker, installer, exitCode)
     }
 
@@ -110,6 +126,52 @@ enum UpdateServiceTests {
             return TestRun.expect(false, "expected failed, got \(service.state)")
         }
         TestRun.expectEqual(message, "网络不可用或连接超时", "error text")
+    }
+
+    /// 手动检查得出「已是最新」→ 发一条通知（用户决策 2026-11-01）；自动检查静默
+    static func manualUpToDateNotifies() {
+        let (service, _, _, _) = makeService(release: .success(makeRelease("0.0.0")))
+        var notified = 0
+        service.upToDateNotifier = { notified += 1 }
+        service.checkNow(manual: true)
+        TestRun.expect(service.state == .upToDate, "manual check → upToDate")
+        TestRun.expectEqual(notified, 1, "manual up-to-date notifies once")
+    }
+
+    static func autoUpToDateStaysQuiet() {
+        let (service, _, _, _) = makeService(release: .success(makeRelease("0.0.0")))
+        var notified = 0
+        service.upToDateNotifier = { notified += 1 }
+        service.checkNow() // 启动 10s / 每 6h 轮询的默认路径
+        TestRun.expect(service.state == .upToDate, "auto check → upToDate")
+        TestRun.expectEqual(notified, 0, "auto up-to-date stays quiet")
+    }
+
+    /// 自动检查在途时手动「检查更新」被收编为手动（issue #21）：共用同一次 fetch，
+    /// 结论「已是最新」仍按手动口径通知，而不是被 guard 静默吞掉
+    static func manualCheckDuringAutoCheckIsAdopted() {
+        let (service, checker, _, _) = makeService(release: .success(makeRelease("0.0.0")))
+        var notified = 0
+        service.upToDateNotifier = { notified += 1 }
+        checker.deferredCheck = true // 挂起完成回调，真实停在 .checking
+        service.checkNow() // 自动轮询发起（manualCheckInFlight == false）
+        TestRun.expect(service.state == .checking, "auto check in flight, got \(service.state)")
+        service.checkNow(manual: true) // 在途检查收编为手动，不重发 fetch
+        TestRun.expectEqual(checker.callCount, 1, "in-flight fetch shared, no re-fetch")
+        checker.resolveCheck()
+        TestRun.expect(service.state == .upToDate, "resolved → upToDate, got \(service.state)")
+        TestRun.expectEqual(notified, 1, "adopted manual check notifies on up-to-date")
+    }
+
+    /// 手动标记不得泄漏进后续自动检查（issue #24-1）：否则每 6h 轮询重发「已是最新」
+    static func manualFlagDoesNotLeakIntoLaterAutoChecks() {
+        let (service, _, _, _) = makeService(release: .success(makeRelease("0.0.0")))
+        var notified = 0
+        service.upToDateNotifier = { notified += 1 }
+        service.checkNow(manual: true)
+        TestRun.expectEqual(notified, 1, "manual check notifies once")
+        service.checkNow() // 同一 service 的后续自动检查
+        TestRun.expectEqual(notified, 1, "flag reset: later auto check stays quiet")
     }
 
     static func downloadShowsProgressThenStages() {

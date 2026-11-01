@@ -1,4 +1,5 @@
 import Foundation
+import os
 import UserNotifications
 
 /// 更新流程状态
@@ -45,12 +46,19 @@ final class UpdateService {
     /// 测试注入点：发现新版本时的系统通知（UNUserNotificationCenter 在无 bundle 的
     /// 自测二进制里会直接抛异常，故不可用默认实现直接跑自测）
     var versionAvailableNotifier: (ReleaseInfo) -> Void = UpdateService.postUpdateNotification
+    /// 测试注入点：手动检查得出「已是最新」时的系统通知（同上，自测注入覆盖）
+    var upToDateNotifier: () -> Void = UpdateService.postUpToDateNotification
+    /// 本次检查是否由用户手动触发（决定「已是最新」是否打扰）
+    private var manualCheckInFlight = false
 
     private let checker: UpdateChecking
     private let installer: UpdateDownloading
     private var notifiedTag: String?
     private var stagedAppURL: URL?
     private var cancellingDownload = false
+
+    /// 通知投递等更新侧日志（与 TrafficMonitor.swift / TrafficMonitorApp.swift 同一 subsystem）
+    private static let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "update")
 
     init(checker: UpdateChecking = GithubReleaseChecker(),
          installer: UpdateDownloading = UpdateInstaller()) {
@@ -67,8 +75,18 @@ final class UpdateService {
 
     // MARK: 检查
 
-    func checkNow() {
-        guard !isBusy else { return }
+    /// - Parameter manual: 用户手动触发（菜单/主页按钮）。仅手动检查得出「已是最新」
+    ///   时发系统通知；自动检查（启动 10s / 每 6h）静默，避免打扰
+    func checkNow(manual: Bool = false) {
+        guard !isBusy else {
+            // 收编在途检查为手动（issue #21）：自动轮询在途时用户手动点「检查更新」，
+            // 结束后按手动口径反馈「已是最新」；仅 .checking 态收编——.downloading/.installing
+            // 无 fetch 在途可收编，置位只会留下不被任何 finishCheck 消费的死状态
+            // （manualCheckInFlight 在每次非 busy checkNow 开头被无条件覆写，不存在泄漏路径）
+            if manual, case .checking = state { manualCheckInFlight = true }
+            return
+        }
+        manualCheckInFlight = manual
         state = .checking
         emit()
         checker.fetchLatestRelease { [weak self] result in
@@ -91,8 +109,10 @@ final class UpdateService {
             } else {
                 lastError = nil
                 state = .upToDate
+                if manualCheckInFlight { upToDateNotifier() }
             }
         }
+        manualCheckInFlight = false
         emit()
     }
 
@@ -109,7 +129,34 @@ final class UpdateService {
         content.body = "\(release.tagName) 可更新（当前 \(AppVersion.current)）。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: "update-\(release.tagName)", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { _ in } // 通知不可用时静默：菜单/主页仍有入口
+        UNUserNotificationCenter.current().add(request) { error in
+            // 投递失败记 error 级日志（菜单/主页仍有入口，但失败必须可检索）
+            if let error {
+                Self.logger.error("update notification delivery failed (\(release.tagName, privacy: .public)): \(String(describing: error), privacy: .public)")
+            } else {
+                Self.logger.debug("update notification delivered: \(release.tagName, privacy: .public)")
+            }
+        }
+    }
+
+    /// 手动检查确认已是最新：轻量通知告知即可。identifier 不带 "update-" 前缀，
+    /// 点击不跳主页（无升级内容可看）。
+    /// 注意：是否跳主页的判定在 MenuBarController 的
+    /// `userNotificationCenter(_:didReceive:)` 里按 "update-" 前缀检查——
+    /// "uptodate" 与 "update-" 一字之差，重命名 identifier 时两处必须同步，防静默破坏
+    static func postUpToDateNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "Traffic Monitor 已是最新版本"
+        content.body = "当前 \(AppVersion.current) 即最新发布版。"
+        let request = UNNotificationRequest(identifier: "uptodate-check", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            // 手动「已是最新」通知是唯一即时反馈，投递失败必须留痕
+            if let error {
+                Self.logger.error("up-to-date notification delivery failed: \(String(describing: error), privacy: .public)")
+            } else {
+                Self.logger.debug("up-to-date notification delivered")
+            }
+        }
     }
 
     // MARK: 下载
