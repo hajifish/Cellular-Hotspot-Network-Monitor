@@ -43,8 +43,10 @@ Run: `swift build && TRAFFICMONITOR_SELFTEST=1 .build/debug/TrafficMonitor`
 
 ## 批次 4：验证与目检
 
-- [ ] `swift build && TRAFFICMONITOR_SELFTEST=1 .build/debug/TrafficMonitor` 全绿，对照批次 0 基线项数
+- [x] `swift build && TRAFFICMONITOR_SELFTEST=1 .build/debug/TrafficMonitor` 全绿：**262 项**（基线 242，净增 20）
+- [x] 诊断开关：`TRAFFICMONITOR_UPDATE_TIMEOUT=1`（`GithubReleaseChecker.fetchLatestRelease` 层拦截，不发网络请求直接超时失败）——目检失败 UI 无需断网；`open -n --env TRAFFICMONITOR_UPDATE_TIMEOUT=1 <app>` 启动
 - [ ] `scripts/make-app.sh` 打包目检（裸二进制 GUI 会崩，须打包）：
-  - 失败可见：断网或限流期打开主页 → 卡片展开显示原因 + 「重试」；菜单「检查更新 · 失败」
-  - 降级探测：限流期（API 403）点检查更新 → 菜单「检查更新 · 有新版本」（当前 0.5.0 已是 latest，应为「已是最新」的静默路径；确认无回归即可，降级发现新版逻辑以纯函数与实时集成测试为准）
+  - 失败可见：带上述开关启动 → 启动 10s 自动检查即失败；菜单「检查更新 · 失败」；主页卡片展开显示「网络不可用或连接超时」+「重试」
+  - 已是最新：不带开关启动（make-app 版本 1.0 > 线上）→ 手动点「检查更新」→ 菜单「· 已是最新」+ 一条系统通知；自动检查无通知
+  - 降级探测：限流期（API 403）自动走网页重定向——`liveRedirectProbe` 已实测，GUI 无独立入口，以实时集成测试为准
 - [ ] 回归：告警弹窗、通知、主页其余卡片不受影响

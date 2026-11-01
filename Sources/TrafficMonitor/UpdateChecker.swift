@@ -21,7 +21,17 @@ struct GithubReleaseChecker: UpdateChecking {
         self.repository = repository
     }
 
+    /// 诊断/验证用：TRAFFICMONITOR_UPDATE_TIMEOUT=1 时不发任何网络请求，
+    /// 直接以连接超时失败——用于目检失败可见性 UI（菜单「· 失败」+ 主页卡片），
+    /// 无需断网。正常使用不设置该环境变量
+    static var simulatesTimeout: Bool {
+        ProcessInfo.processInfo.environment["TRAFFICMONITOR_UPDATE_TIMEOUT"] == "1"
+    }
+
     func fetchLatestRelease(completion: @escaping (Result<ReleaseInfo, Error>) -> Void) {
+        if Self.simulatesTimeout {
+            return DispatchQueue.main.async { completion(.failure(URLError(.timedOut))) }
+        }
         Self.fetchLatestRaw(repository: repository) { result in
             DispatchQueue.main.async { completion(result) }
         }
