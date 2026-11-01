@@ -97,7 +97,7 @@ struct GithubReleaseChecker: UpdateChecking {
         guard let url = URL(string: "https://github.com/\(repository)/releases/latest") else {
             return completion(.failure(UpdateError.badResponse))
         }
-        var request = URLRequest(url: url, timeoutInterval: 10)
+        let request = URLRequest(url: url, timeoutInterval: 10)
         URLSession.shared.dataTask(with: request) { _, response, error in
             completion(Self.handleProbeResponse(response: response, error: error, repository: repository))
         }.resume()
@@ -166,7 +166,7 @@ struct GithubReleaseChecker: UpdateChecking {
         }
         if let updateError = error as? UpdateError {
             switch updateError {
-            case .apiError(403): return "GitHub 接口限流，请稍后再试"
+            case .apiError(403), .apiError(429): return "GitHub 接口限流，请稍后再试"
             case .apiError(let code): return "GitHub 接口错误（\(code)）"
             case .badResponse: return "GitHub 响应异常"
             case .assetMissing: return "新版本的安装包尚未就绪，请稍后再试或前往发布页"

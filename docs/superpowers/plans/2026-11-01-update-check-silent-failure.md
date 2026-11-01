@@ -50,3 +50,18 @@ Run: `swift build && TRAFFICMONITOR_SELFTEST=1 .build/debug/TrafficMonitor`
   - 已是最新：不带开关启动（make-app 版本 1.0 > 线上）→ 手动点「检查更新」→ 菜单「· 已是最新」+ 一条系统通知；自动检查无通知
   - 降级探测：限流期（API 403）自动走网页重定向——`liveRedirectProbe` 已实测，GUI 无独立入口，以实时集成测试为准
 - [ ] 回归：告警弹窗、通知、主页其余卡片不受影响
+
+## 批次 5：PR #19 审查修复（#20–#24，2026-11-01，三域 subagent 并行 + 主会话集成）
+
+- [x] **#20（HIGH）**：`handleProbeResponse` 纯函数（非 2xx → `apiError(状态码)`、传输层错误原样、tag 落点成败）+ `route` 可注入路由 + 离线路由/响应确定性测试（agent A）
+- [x] **#21（MID）**：`checkNow` busy 分支仅对 `.checking` 收编在途检查为手动；FakeChecker 加 `deferredCheck`/`resolveCheck()` 挂起基建 + 序列化测试（agent B）
+- [x] **#22（MID）**：两处通知 `add` 回调接入 `Logger(subsystem: local.shin.TrafficMonitor, category: update)`，失败 error 级/成功 debug 级，对齐项目先例（agent B）
+- [x] **#23**：10 处注释/文档同步——两处事实性错误（checkUpdatesAction/menuCheckTitle 对 `.failed` 的路由描述）、文件头与设计文档回填、通知前缀契约、403/429 口径、live 跳过注释等（agent A/C 分域）
+- [x] **#24**：7 条补测全落地——manualFlag 复位序列化、降级卡片回退「上次检查」、selectAsset 闭环、`.installing` 后缀、simulatesTimeout 默认关、斜杠 tag/大写 V 边界、live 跳过可见化（agent A/B/C 分域）
+- [x] 集成补缺（主会话）：`errorText` 429 并入限流文案（agent A 发现的缺口，降级通道 429 正是共享 IP 场景）；`redirectProbe` 的 `var request` → `let`
+- [x] 集成方式：三域 worktree 零文件交集，A/B/C 各自 TDD 全绿后按提交樱桃挑选，逐次全量验证：267 → 271 → 285 项全绿
+
+### 遗留（不在本 PR，待定）
+
+- fireAlert 通知失败有应用内兜底但无日志；里程碑通知 `_ = error` 全静默（agent B 发现，既有代码同 #22 模式）
+- `#21` 已知边界：手动被收编后若在途检查结论是 failed，手动意图无额外反馈（issue 方案自身口径，未扩大）

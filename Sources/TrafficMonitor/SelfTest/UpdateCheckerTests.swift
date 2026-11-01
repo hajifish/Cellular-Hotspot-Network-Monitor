@@ -186,6 +186,7 @@ enum UpdateCheckerTests {
     static func errorTextMapping() {
         TestRun.expectEqual(GithubReleaseChecker.errorText(URLError(.timedOut)), "网络不可用或连接超时", "timeout")
         TestRun.expectEqual(GithubReleaseChecker.errorText(UpdateError.apiError(403)), "GitHub 接口限流，请稍后再试", "rate limit")
+        TestRun.expectEqual(GithubReleaseChecker.errorText(UpdateError.apiError(429)), "GitHub 接口限流，请稍后再试", "429 also rate-limit text")
         TestRun.expectEqual(GithubReleaseChecker.errorText(UpdateError.versionMismatch), "下载内容校验不符，已放弃安装", "mismatch")
         TestRun.expectEqual(GithubReleaseChecker.errorText(UpdateError.devBuild), "开发构建不支持应用内更新，请前往发布页下载", "dev build")
     }
