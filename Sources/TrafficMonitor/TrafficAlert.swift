@@ -1,6 +1,6 @@
 import Foundation
 
-/// 流量阈值告警：以设置时刻的总流量为基线，进度从零起算，达到阈值时触发一次
+/// 流量阈值告警：从指定基线累计进度，达到阈值时触发一次
 final class TrafficAlert {
     private(set) var threshold: UInt64? // nil = 关闭
     private(set) var fired = false
@@ -12,7 +12,7 @@ final class TrafficAlert {
         self.baselineBytes = baselineBytes
     }
 
-    /// 设置新阈值，并从当前总流量重新起算（旧的累计不纳入进度）
+    /// 设置新阈值与起算基线
     func setThreshold(_ bytes: UInt64?, baselineBytes: UInt64 = 0) {
         threshold = bytes
         self.baselineBytes = baselineBytes

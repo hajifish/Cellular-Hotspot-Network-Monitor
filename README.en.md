@@ -47,18 +47,21 @@
 - **Per-module reset** — each interface card has a reset button (top-right);
   after confirmation it clears only that module's counters and clock, and
   any reset re-arms the traffic alert
-- **Traffic alerts** — based on the **merged total of all modules'
-  cumulative upload + download**; thresholds off / 1 / 2 / 5 / 10 / 20 GB or
-  custom values (`5 GB`, `500 MB`), presented as a plan budget: once armed,
+- **Traffic alerts** — based on the **total of all modules'
+  cumulative upload + download**; thresholds off, 500 MB, 1 / 2 / 3 / 5 / 10 /
+  20 GB, or custom values (`5 GB`, `500 MB`), presented as a plan budget: once armed,
   the menu and home window show the remainder ("剩 X · 已用 Y%" = X left · Y%
   used). On crossing: a soft chime plus a system notification (in-app
   dialog if notifications are not authorized) and the ring turns red.
-  Fires once per threshold and re-arms on reset or change
+  When changing the threshold, you can keep and count existing usage or reset
+  all totals and start a new metering period. Fires once per threshold and
+  re-arms on reset or change
 - **Home window (⌘0)** — interface cards on the left (name, live rates,
-  totals, reset) and a **merged-total ring gauge** on the right (ring =
+  totals, reset) and a **total-usage ring gauge** on the right (sum of all
+  modules' upload + download; ring =
   alert progress: plain when unset / orange arc while armed / red when
   fired), plus a rolling 120-second upload/download rate graph that adapts
-  to light and dark mode
+  to light and dark mode and can be collapsed to reduce window height
 - **Auto-update** — detects new releases via GitHub Releases (automatic
   check after launch and every 6 hours; manual check from the menu).
   A new version triggers a system notification plus a "Software Update"

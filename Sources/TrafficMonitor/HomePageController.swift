@@ -1,6 +1,6 @@
 import AppKit
 
-/// 主页窗口：深色玻璃仪表盘，左列（汇总条 + 接口卡片堆叠）+ 右侧合并总流量圆环（环=告警进度）+ 120 秒滚动速率图
+/// 主页窗口：深色玻璃仪表盘，左列（汇总条 + 接口卡片堆叠）+ 右侧总累计告警圆环 + 可折叠的 120 秒速率图
 @MainActor
 final class HomePageController {
     /// 告警汇总的展示状态
@@ -22,6 +22,7 @@ final class HomePageController {
     private var summaryValues: [NSTextField] = []
     private var legendLabel: NSTextField!
     private var ringStatusLabel: NSTextField!
+    private var rateSectionToggle: NSButton!
     private var totalsChip: NSView!
     private var ratesChip: NSView!
     private var ratesToggle: NSButton!
@@ -38,6 +39,7 @@ final class HomePageController {
     /// 收起/展开卡片时需要整体平移的基础视图（图例、图表、卡片等）
     private var updateBaseViews: [NSView] = []
     private var updateCardVisible = false
+    private var rateSectionCollapsed = false
     private var observerID: UUID?
 
     static let downloadAccent = RateGraphView.downloadColor
@@ -185,17 +187,12 @@ final class HomePageController {
             cards[category] = (rate, total, title, meta)
         }
 
-        // 右列：合并总流量圆环面板（环 = 告警进度，环心 = 全局合并总量，与告警同口径）
+        // 右列：告警进度圆环，环心展示所有模块上行 + 下行总计
         let ringPanel = roundedCard(frame: NSRect(x: 492, y: 180, width: 204, height: 234))
         content.addSubview(ringPanel)
         updateBaseViews.append(ringPanel)
         ringView.frame = NSRect(x: 37, y: 62, width: 130, height: 130)
         ringPanel.contentView?.addSubview(ringView)
-        let ringCaption = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
-        ringCaption.stringValue = "合并总流量"
-        ringCaption.frame = NSRect(x: 0, y: 44, width: 204, height: 14)
-        ringCaption.alignment = .center
-        ringPanel.contentView?.addSubview(ringCaption)
         ringStatusLabel = makeLabel(size: 12, color: .white, weight: .semibold)
         ringStatusLabel.frame = NSRect(x: 10, y: 16, width: 184, height: 18)
         ringStatusLabel.alignment = .center
@@ -204,9 +201,20 @@ final class HomePageController {
 
         let sectionLabel = makeLabel(size: 11, color: .secondaryLabelColor, weight: .medium)
         sectionLabel.stringValue = "实时速率 · 近 120 秒"
-        sectionLabel.frame = NSRect(x: 24, y: 154, width: 672, height: 16)
+        sectionLabel.frame = NSRect(x: 24, y: 154, width: 560, height: 16)
         content.addSubview(sectionLabel)
         updateBaseViews.append(sectionLabel)
+        rateSectionToggle = NSButton(title: "", target: self, action: #selector(toggleRateSection))
+        rateSectionToggle.image = NSImage(systemSymbolName: "chevron.down",
+                                          accessibilityDescription: "收起实时速率图表")?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
+        rateSectionToggle.imagePosition = .imageOnly
+        rateSectionToggle.isBordered = false
+        rateSectionToggle.frame = NSRect(x: 666, y: 150, width: 30, height: 24)
+        rateSectionToggle.toolTip = "收起实时速率图表，缩短主页高度"
+        rateSectionToggle.setAccessibilityLabel("收起实时速率图表")
+        content.addSubview(rateSectionToggle)
+        updateBaseViews.append(rateSectionToggle)
 
         graphView.frame = NSRect(x: 24, y: 40, width: 672, height: 106)
         content.addSubview(graphView)
@@ -337,6 +345,35 @@ final class HomePageController {
         ratesLabel.textColor = StatusBarPrefs.showRates ? .white : .secondaryLabelColor
     }
 
+    @objc private func toggleRateSection() {
+        let collapsed = !rateSectionCollapsed
+        rateSectionCollapsed = collapsed
+        graphView.isHidden = collapsed
+        legendLabel.isHidden = collapsed
+        updateVersionLabel.isHidden = collapsed || updateCardVisible
+        let label = collapsed ? "展开实时速率图表" : "收起实时速率图表"
+        rateSectionToggle.image = NSImage(systemSymbolName: collapsed ? "chevron.up" : "chevron.down",
+                                          accessibilityDescription: label)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
+        rateSectionToggle.toolTip = collapsed
+            ? "展开实时速率图表" : "收起实时速率图表，缩短主页高度"
+        rateSectionToggle.setAccessibilityLabel(label)
+
+        let height: CGFloat = 126
+        for view in updateBaseViews {
+            view.frame.origin.y += collapsed ? -height : height
+        }
+        var frame = window.frame
+        if collapsed {
+            frame.origin.y += height
+            frame.size.height -= height
+        } else {
+            frame.origin.y -= height
+            frame.size.height += height
+        }
+        window.setFrame(frame, display: true)
+    }
+
     // MARK: - 按模块重置
 
     @objc private func resetCategory(_ sender: NSButton) {
@@ -390,7 +427,7 @@ final class HomePageController {
             view.frame.origin.y += dy
         }
         updateCardBox.isHidden = !visible
-        updateVersionLabel.isHidden = visible
+        updateVersionLabel.isHidden = visible || rateSectionCollapsed
         var frame = window.frame
         if visible {
             frame.origin.y -= 84
@@ -537,7 +574,7 @@ final class HomePageController {
         summaryValues[1].stringValue = "↑ \(ByteFormat.string(totalTX))"
         summaryValues[2].stringValue = "↓ \(ByteFormat.string(totalRX))"
 
-        // 合并总流量圆环：环 = 告警进度，环心 = 全局合并总量（与告警同口径）
+        // 总累计圆环：环 = 告警进度，环心 = 所有模块累计上行 + 下行
         let alertState = alertStateProvider?()
         let fired = alertState?.fired ?? false
         let progressBytes = alertState?.progressBytes ?? 0

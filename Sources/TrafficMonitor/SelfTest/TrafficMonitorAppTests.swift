@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// MenuBarController 静态编排函数的自测（控制器本体自测环境不可实例化）
@@ -5,9 +6,20 @@ import Foundation
 enum TrafficMonitorAppTests {
     static func all() {
         applyAlertThresholdKeepsTotalsWhenDecliningReset()
+        applyAlertThresholdCountsExistingUsageWhenDecliningReset()
         applyAlertThresholdSyncResetZeroesTotalsAndBaseline()
         applyAlertThresholdKeepsTotalsWhenDisabling()
         applyAlertThresholdSettlesDialogTrafficBeforeReset()
+        alertResetRequiresExplicitThirdButton()
+    }
+
+    static func alertResetRequiresExplicitThirdButton() {
+        TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .alertFirstButtonReturn),
+                       "adjust alert does not reset")
+        TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .alertSecondButtonReturn),
+                       "cancel or Escape does not reset")
+        TestRun.expect(MenuBarController.shouldResetAlert(modalResponse: .alertThirdButtonReturn),
+                       "explicit reset button resets")
     }
 
     /// 基线态：wifi 100/50 + iphone 20/10，合并总量 180
@@ -21,15 +33,33 @@ enum TrafficMonitorAppTests {
     }
 
     static func applyAlertThresholdKeepsTotalsWhenDecliningReset() {
-        // 「仅设置告警」：累计保留，基线 = 原总量，进度从当前时刻起算
+        // 「仅设置告警」：累计保留并计入新告警进度
         let monitor = makeMonitor()
         let alert = TrafficAlert()
         MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: false,
                                               monitor: monitor, alert: alert)
         TestRun.expectEqual(MenuBarController.meteredTotal(of: monitor), UInt64(180), "totals kept")
-        TestRun.expectEqual(alert.baselineBytes, UInt64(180), "baseline = prior total")
-        TestRun.expectEqual(alert.progress(totalBytes: 280), UInt64(100), "progress counts from baseline")
+        TestRun.expectEqual(alert.baselineBytes, UInt64(0), "baseline includes existing total")
+        TestRun.expectEqual(alert.progress(totalBytes: 280), UInt64(280), "progress includes existing total")
         TestRun.expect(alert.threshold == MenuBarController.gigabyte, "threshold applied")
+    }
+
+    static func applyAlertThresholdCountsExistingUsageWhenDecliningReset() {
+        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
+        monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi,
+                                                          rx: MenuBarController.gigabyte, tx: 0)])
+        let alert = TrafficAlert()
+        let threshold = 3 * MenuBarController.gigabyte
+        MenuBarController.applyAlertThreshold(threshold, syncReset: false,
+                                              monitor: monitor, alert: alert)
+        let status = HomePageController.alertStrip(threshold: alert.threshold, fired: alert.fired,
+                                                   progressBytes: alert.progress(totalBytes:
+                                                       MenuBarController.meteredTotal(of: monitor)))
+        TestRun.expectEqual(alert.threshold, threshold, "3 GB threshold stays unchanged")
+        TestRun.expectEqual(alert.progress(totalBytes: MenuBarController.meteredTotal(of: monitor)),
+                            MenuBarController.gigabyte, "existing 1 GB counts toward alert")
+        TestRun.expectEqual(status.text, "剩 2.0GB · 已用 33%", "3 GB alert shows 1 GB used and 2 GB remaining")
     }
 
     static func applyAlertThresholdSyncResetZeroesTotalsAndBaseline() {
