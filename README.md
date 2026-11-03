@@ -104,7 +104,8 @@ open "Traffic Monitor.app"
 - 接口分类：Wi-Fi 按接口类型 `IEEE80211`；iPhone USB 按硬件端口显示名含
   "iPhone"（`SCNetworkInterfaceGetLocalizedDisplayName`）。
 - 速率为相邻两次采样的每秒增量；各模块的累计与开始时间相互独立，重置仅影响
-  对应模块。告警阈值记忆在 `UserDefaults`。
+  对应模块；累计与开始时间会持久化，应用重启或升级后仍会保留。告警阈值也记忆在
+  `UserDefaults`。
 
 ## 开发
 

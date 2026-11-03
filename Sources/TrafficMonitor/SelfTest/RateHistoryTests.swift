@@ -37,7 +37,7 @@ enum RateHistoryTests {
     }
 
     static func monitorFeedsHistory() {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [ClassifiedSample(name: "en0", category: .wifi, counters: InterfaceCounters(rx: 0, tx: 0))])
         monitor.update(from: [ClassifiedSample(name: "en0", category: .wifi, counters: InterfaceCounters(rx: 500, tx: 250))])
         // 每个 tick 都入一条样本（空闲秒也记录，保证图表时间线连续）

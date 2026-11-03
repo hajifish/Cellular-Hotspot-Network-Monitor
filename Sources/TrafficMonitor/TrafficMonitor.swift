@@ -5,7 +5,7 @@ import os
 @Observable
 @MainActor
 final class TrafficMonitor {
-    let store = UsageStore()
+    let store: UsageStore
     let history = RateHistory()
     private let sampler: InterfaceSampling
     private let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "tick")
@@ -18,8 +18,9 @@ final class TrafficMonitor {
     private var timer: Timer?
     private var lastSampleDate: Date?
 
-    init(sampler: InterfaceSampling = InterfaceSampler()) {
+    init(sampler: InterfaceSampling = InterfaceSampler(), usageDefaults: UserDefaults = .standard) {
         self.sampler = sampler
+        store = UsageStore(defaults: usageDefaults)
         // 首次采样作为基线：接口计数器是"开机以来累计"，不能直接计入
         previousCounters = Self.counterMap(from: sampler.sample())
     }

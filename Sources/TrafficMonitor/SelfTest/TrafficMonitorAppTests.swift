@@ -10,21 +10,21 @@ enum TrafficMonitorAppTests {
         applyAlertThresholdSyncResetZeroesTotalsAndBaseline()
         applyAlertThresholdKeepsTotalsWhenDisabling()
         applyAlertThresholdSettlesDialogTrafficBeforeReset()
-        alertResetRequiresExplicitThirdButton()
+        alertResetRequiresExplicitConfirmation()
     }
 
-    static func alertResetRequiresExplicitThirdButton() {
+    static func alertResetRequiresExplicitConfirmation() {
         TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .alertFirstButtonReturn),
-                       "adjust alert does not reset")
-        TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .alertSecondButtonReturn),
-                       "cancel or Escape does not reset")
-        TestRun.expect(MenuBarController.shouldResetAlert(modalResponse: .alertThirdButtonReturn),
+                       "keep totals does not reset")
+        TestRun.expect(MenuBarController.shouldResetAlert(modalResponse: .alertSecondButtonReturn),
                        "explicit reset button resets")
+        TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .abort),
+                       "close button does not reset")
     }
 
     /// 基线态：wifi 100/50 + iphone 20/10，合并总量 180
     static func makeMonitor() -> TrafficMonitor {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0),
                               TrafficMonitorTests.sample("en5", .iphone, rx: 0, tx: 0)])
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 100, tx: 50),
@@ -45,7 +45,7 @@ enum TrafficMonitorAppTests {
     }
 
     static func applyAlertThresholdCountsExistingUsageWhenDecliningReset() {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi,
                                                           rx: MenuBarController.gigabyte, tx: 0)])
@@ -93,7 +93,7 @@ enum TrafficMonitorAppTests {
         // 模态弹窗期间采样定时器停摆：编排函数须先补一拍结算再重置，
         // 否则弹窗期流量会在重置后的下一拍追溯计入新周期（Issue #10）
         let sampler = FakeSampler(samples: [])
-        let monitor = TrafficMonitor(sampler: sampler)
+        let monitor = makeTestTrafficMonitor(sampler: sampler)
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
         sampler.samples = [TrafficMonitorTests.sample("en0", .wifi, rx: 90, tx: 0)] // 弹窗期 +90
         let alert = TrafficAlert()
