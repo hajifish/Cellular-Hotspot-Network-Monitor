@@ -1,5 +1,19 @@
 import Foundation
 
+func makeTestUserDefaults() -> UserDefaults {
+    let suiteName = "TrafficMonitorSelfTest.\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        preconditionFailure("Failed to create isolated test defaults")
+    }
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
+}
+
+@MainActor
+func makeTestTrafficMonitor(sampler: InterfaceSampling) -> TrafficMonitor {
+    TrafficMonitor(sampler: sampler, usageDefaults: makeTestUserDefaults())
+}
+
 /// 极简测试收集器：记录断言通过/失败，最后以退出码报告。
 enum TestRun {
     private(set) static var failures = 0

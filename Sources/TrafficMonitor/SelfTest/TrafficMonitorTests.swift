@@ -25,7 +25,7 @@ enum TrafficMonitorTests {
 
     static func interfacePresenceFollowsLatestSample() {
         // 接口消失（如拔掉 iPhone）后，在线状态必须同步消失，不得残留
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0), sample("en7", .iphone, rx: 0, tx: 0)])
         TestRun.expect(monitor.interfaceByCategory[.iphone] != nil, "iphone present")
         monitor.update(from: [sample("en0", .wifi, rx: 10, tx: 10)]) // en7 消失
@@ -34,7 +34,7 @@ enum TrafficMonitorTests {
     }
 
     static func totalRateSumsCategories() {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0), sample("en5", .iphone, rx: 0, tx: 0)])
         monitor.update(from: [sample("en0", .wifi, rx: 1_000, tx: 500),
                               sample("en5", .iphone, rx: 200, tx: 100)])
@@ -42,7 +42,7 @@ enum TrafficMonitorTests {
     }
 
     static func updateAccumulatesTotalsAndRates() {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0), sample("en5", .iphone, rx: 0, tx: 0)])
         monitor.update(from: [sample("en0", .wifi, rx: 2_000_000, tx: 1_000_000),
                               sample("en5", .iphone, rx: 500_000, tx: 250_000)])
@@ -55,7 +55,7 @@ enum TrafficMonitorTests {
     }
 
     static func resetZeroesRatesAndStore() {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0)])
         monitor.update(from: [sample("en0", .wifi, rx: 100, tx: 100)])
         monitor.reset()
@@ -65,7 +65,7 @@ enum TrafficMonitorTests {
     }
 
     static func resetCategoryKeepsOtherCategory() {
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0), sample("en5", .iphone, rx: 0, tx: 0)])
         monitor.update(from: [sample("en0", .wifi, rx: 100, tx: 100),
                               sample("en5", .iphone, rx: 7000, tx: 300)])
@@ -79,14 +79,15 @@ enum TrafficMonitorTests {
 
     static func firstSampleIsBaselineNotCounted() {
         // 构造时采到的"开机以来累计量"不应被计入
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: [sample("en0", .wifi, rx: 999_999_999, tx: 999_999_999)]))
+        let monitor = makeTestTrafficMonitor(
+            sampler: FakeSampler(samples: [sample("en0", .wifi, rx: 999_999_999, tx: 999_999_999)]))
         TestRun.expectEqual(monitor.store.wifi.rx, UInt64(0), "baseline rx not counted")
         TestRun.expectEqual(monitor.store.wifi.tx, UInt64(0), "baseline tx not counted")
     }
 
     static func emptySampleSkipsTickKeepingBaseline() {
         // 采样失败（空结果）：该拍整体跳过，基线保留，下一拍照常计差
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0)])
         monitor.update(from: [sample("en0", .wifi, rx: 100, tx: 100)])
         monitor.update(from: []) // 采样失败
@@ -98,7 +99,7 @@ enum TrafficMonitorTests {
 
     static func sleepGapKeepsTotalsButRebasesRate() {
         // 休眠/唤醒：跨大间隔的一拍把休眠期真实流量计入累计，但速率按重新基线记 0（避免假尖峰）
-        let monitor = TrafficMonitor(sampler: FakeSampler(samples: []))
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [sample("en0", .wifi, rx: 0, tx: 0)], at: Date())
         monitor.update(from: [sample("en0", .wifi, rx: 5_000_000, tx: 0)], at: Date().addingTimeInterval(1))
         monitor.update(from: [sample("en0", .wifi, rx: 6_000_000, tx: 0)], at: Date().addingTimeInterval(60))

@@ -3,6 +3,107 @@ import Foundation
 import os
 import UserNotifications
 
+@MainActor
+private final class AlertResetDialog: NSPanel {
+    init() {
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 390, height: 340),
+                   styleMask: [.titled, .fullSizeContentView],
+                   backing: .buffered, defer: false)
+        titleVisibility = .hidden
+        titlebarAppearsTransparent = true
+        isMovableByWindowBackground = true
+        isReleasedWhenClosed = false
+        for buttonType in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            standardWindowButton(buttonType)?.isHidden = true
+        }
+        let content = NSView()
+        contentView = content
+
+        let icon = NSImageView(image: NSApp.applicationIconImage)
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        content.addSubview(icon)
+
+        let title = NSTextField(labelWithString: "如何开始计算新的流量告警？")
+        title.translatesAutoresizingMaskIntoConstraints = false
+        title.font = .boldSystemFont(ofSize: 16)
+        content.addSubview(title)
+
+        let cancelButton = NSButton(
+            image: NSImage(systemSymbolName: "xmark.circle.fill",
+                           accessibilityDescription: "取消")!,
+            target: self,
+            action: #selector(cancel)
+        )
+        cancelButton.translatesAutoresizingMaskIntoConstraints = false
+        cancelButton.isBordered = false
+        cancelButton.setAccessibilityLabel("取消")
+        cancelButton.keyEquivalent = "\u{1b}"
+        content.addSubview(cancelButton)
+
+        let details = NSTextField(wrappingLabelWithString:
+            "「仅调整告警」会保留所有模块当前的累计流量和计时，并将现有累计计入新告警进度；弹窗期间产生的流量也会计入。\n\n「归零重置」会清空所有模块的累计流量、重新开始计时，并清除速率曲线和里程碑进度；新告警从 0 开始计算。此操作不可撤销。"
+        )
+        details.translatesAutoresizingMaskIntoConstraints = false
+        details.maximumNumberOfLines = 0
+        content.addSubview(details)
+
+        let keepButton = NSButton(title: "仅调整告警", target: self, action: #selector(choose(_:)))
+        keepButton.translatesAutoresizingMaskIntoConstraints = false
+        keepButton.bezelStyle = .rounded
+        keepButton.tag = 1
+        content.addSubview(keepButton)
+
+        let resetButton = NSButton(title: "归零重置", target: self, action: #selector(choose(_:)))
+        resetButton.translatesAutoresizingMaskIntoConstraints = false
+        resetButton.bezelStyle = .rounded
+        resetButton.bezelColor = .controlAccentColor
+        resetButton.contentTintColor = .white
+        resetButton.keyEquivalent = "\r"
+        resetButton.tag = 2
+        content.addSubview(resetButton)
+
+        NSLayoutConstraint.activate([
+            icon.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 28),
+            icon.topAnchor.constraint(equalTo: content.topAnchor, constant: 28),
+            icon.widthAnchor.constraint(equalToConstant: 36),
+            icon.heightAnchor.constraint(equalToConstant: 36),
+            title.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 14),
+            title.centerYAnchor.constraint(equalTo: icon.centerYAnchor),
+            title.trailingAnchor.constraint(lessThanOrEqualTo: cancelButton.leadingAnchor, constant: -8),
+            cancelButton.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
+            cancelButton.centerYAnchor.constraint(equalTo: icon.centerYAnchor),
+            cancelButton.widthAnchor.constraint(equalToConstant: 24),
+            cancelButton.heightAnchor.constraint(equalToConstant: 24),
+            details.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 28),
+            details.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -28),
+            details.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 20),
+            details.bottomAnchor.constraint(lessThanOrEqualTo: keepButton.topAnchor, constant: -20),
+            keepButton.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 28),
+            keepButton.trailingAnchor.constraint(equalTo: resetButton.leadingAnchor, constant: -12),
+            keepButton.widthAnchor.constraint(equalTo: resetButton.widthAnchor),
+            resetButton.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -28),
+            keepButton.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -24),
+            resetButton.bottomAnchor.constraint(equalTo: keepButton.bottomAnchor),
+            keepButton.heightAnchor.constraint(equalToConstant: 32),
+            resetButton.heightAnchor.constraint(equalTo: keepButton.heightAnchor),
+        ])
+    }
+
+    @objc private func choose(_ sender: NSButton) {
+        finish(sender.tag == 1 ? .alertFirstButtonReturn : .alertSecondButtonReturn)
+    }
+
+    @objc private func cancel() {
+        finish(.abort)
+    }
+
+    private func finish(_ response: NSApplication.ModalResponse) {
+        NSApp.stopModal(withCode: response)
+        orderOut(nil)
+    }
+}
+
 @main
 struct Main {
     static func main() {
@@ -271,24 +372,20 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     static func shouldResetAlert(modalResponse: NSApplication.ModalResponse) -> Bool {
-        modalResponse == .alertThirdButtonReturn
+        modalResponse == .alertSecondButtonReturn
     }
 
     /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量。
     /// 注意：runModal() 进入模态 run loop——激活本应用、阻塞调用点直到用户作答，
     /// 期间采样定时器停摆（编排函数 applyAlertThreshold 会先补一拍结算）。
-    /// - Returns: true 表示用户明确选择「归零重置」；取消（包括 Esc）按 false 处理
+    /// - Returns: true 表示用户明确选择「归零重置」；关闭（包括 Esc）按 false 处理
     private func askSyncReset() -> Bool {
-        let dialog = NSAlert()
-        dialog.messageText = "如何开始计算新的流量告警？"
-        dialog.informativeText = "「仅调整告警」会保留所有模块当前的累计流量和计时，并将现有累计计入新告警进度；弹窗期间产生的流量也会计入。\n\n「归零重置」会清空所有模块的累计流量、重新开始计时，并清除速率曲线和里程碑进度；新告警从 0 开始计算。此操作不可撤销。"
-        dialog.addButton(withTitle: "仅调整告警")
-        dialog.addButton(withTitle: "取消")
-        let resetButton = dialog.addButton(withTitle: "归零重置")
-        resetButton.bezelColor = NSColor(calibratedRed: 0.96, green: 0.84, blue: 0.56, alpha: 1)
-        resetButton.contentTintColor = NSColor(calibratedWhite: 0.15, alpha: 1)
+        let dialog = AlertResetDialog()
         NSApp.activate(ignoringOtherApps: true)
-        return Self.shouldResetAlert(modalResponse: dialog.runModal())
+        dialog.center()
+        let response = NSApp.runModal(for: dialog)
+        dialog.orderOut(nil)
+        return Self.shouldResetAlert(modalResponse: response)
     }
 
     @objc private func selectAlertPreset(_ sender: NSMenuItem) {
