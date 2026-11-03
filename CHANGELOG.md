@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
+## [Unreleased]
+
+## [0.8.0] - 2026-11-03
+
+### 修复 (Fixed)
+
+- 应用重启或升级后恢复 Wi-Fi 与 iPhone 的累计收发流量和各自开始时间，避免计量意外归零
+
+### 变更 (Changed)
+
+- 重做流量告警设置弹窗：收窄布局、右上角使用关闭图标、两个操作按钮并排；「归零重置」使用蓝色主按钮
+
 ## [0.7.0] - 2026-11-03
 
 ### 修复 (Fixed)

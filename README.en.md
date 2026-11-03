@@ -121,8 +121,9 @@ Or run the build product directly:
   **iPhone USB** by a localized hardware-port display name containing
   "iPhone" (`SCNetworkInterfaceGetLocalizedDisplayName`).
 - Rates are per-second deltas between samples; each module's totals and start
-  time are independent, and a reset affects only its own module. Threshold
-  state is persisted in `UserDefaults`.
+  time are independent, and a reset affects only its own module. Totals and
+  start times are persisted across app restarts and upgrades. Threshold state
+  is also persisted in `UserDefaults`.
 
 ## Development
 
