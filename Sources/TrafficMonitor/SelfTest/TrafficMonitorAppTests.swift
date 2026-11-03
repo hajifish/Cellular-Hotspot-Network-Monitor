@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// MenuBarController 静态编排函数的自测（控制器本体自测环境不可实例化）
@@ -9,6 +10,16 @@ enum TrafficMonitorAppTests {
         applyAlertThresholdSyncResetZeroesTotalsAndBaseline()
         applyAlertThresholdKeepsTotalsWhenDisabling()
         applyAlertThresholdSettlesDialogTrafficBeforeReset()
+        alertResetRequiresExplicitThirdButton()
+    }
+
+    static func alertResetRequiresExplicitThirdButton() {
+        TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .alertFirstButtonReturn),
+                       "adjust alert does not reset")
+        TestRun.expect(!MenuBarController.shouldResetAlert(modalResponse: .alertSecondButtonReturn),
+                       "cancel or Escape does not reset")
+        TestRun.expect(MenuBarController.shouldResetAlert(modalResponse: .alertThirdButtonReturn),
+                       "explicit reset button resets")
     }
 
     /// 基线态：wifi 100/50 + iphone 20/10，合并总量 180

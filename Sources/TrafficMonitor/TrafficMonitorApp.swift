@@ -270,20 +270,25 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         refreshAlertMenuStates()
     }
 
+    static func shouldResetAlert(modalResponse: NSApplication.ModalResponse) -> Bool {
+        modalResponse == .alertThirdButtonReturn
+    }
+
     /// 设置新告警阈值时询问是否同步重置所有累计流量并重新计量。
     /// 注意：runModal() 进入模态 run loop——激活本应用、阻塞调用点直到用户作答，
     /// 期间采样定时器停摆（编排函数 applyAlertThreshold 会先补一拍结算）。
-    /// - Returns: true 表示用户选择「清零并重新计量」；false 表示「仅调整告警」/取消
+    /// - Returns: true 表示用户明确选择「归零重置」；取消（包括 Esc）按 false 处理
     private func askSyncReset() -> Bool {
         let dialog = NSAlert()
         dialog.messageText = "如何开始计算新的流量告警？"
         dialog.informativeText = "「仅调整告警」会保留所有模块当前的累计流量和计时，并将现有累计计入新告警进度；弹窗期间产生的流量也会计入。\n\n「归零重置」会清空所有模块的累计流量、重新开始计时，并清除速率曲线和里程碑进度；新告警从 0 开始计算。此操作不可撤销。"
         dialog.addButton(withTitle: "仅调整告警")
+        dialog.addButton(withTitle: "取消")
         let resetButton = dialog.addButton(withTitle: "归零重置")
         resetButton.bezelColor = NSColor(calibratedRed: 0.96, green: 0.84, blue: 0.56, alpha: 1)
         resetButton.contentTintColor = NSColor(calibratedWhite: 0.15, alpha: 1)
         NSApp.activate(ignoringOtherApps: true)
-        return dialog.runModal() == .alertSecondButtonReturn
+        return Self.shouldResetAlert(modalResponse: dialog.runModal())
     }
 
     @objc private func selectAlertPreset(_ sender: NSMenuItem) {
