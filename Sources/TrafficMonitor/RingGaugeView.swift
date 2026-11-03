@@ -1,7 +1,7 @@
 import AppKit
 
-/// 合并总流量圆环仪表：轨道环常驻，告警进度弧（进行中=橙、已触发=红），
-/// 环心为合并总流量大数字。口径 = 所有模块累计上行 + 下行，与告警一致。
+/// 总累计圆环仪表：轨道环常驻，告警进度弧（进行中=橙、已触发=红），
+/// 环心显示所有模块累计上行 + 下行总和，与告警口径一致。
 final class RingGaugeView: NSView {
     /// 告警弧比例（0…1）；nil = 未设置告警（只画素环）
     var arcFraction: Double? { didSet { needsDisplay = true } }
@@ -46,7 +46,7 @@ final class RingGaugeView: NSView {
             arc.stroke()
         }
 
-        // 环心：合并总流量大数字（等宽）+ 单位小字
+        // 环心：上行 + 下行总计、大数字与单位
         let valueAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 24, weight: .semibold),
             .foregroundColor: NSColor.labelColor,
@@ -55,8 +55,17 @@ final class RingGaugeView: NSView {
             .font: NSFont.systemFont(ofSize: 10),
             .foregroundColor: NSColor.secondaryLabelColor,
         ]
+        let caption = "总累计"
+        let captionAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 9, weight: .medium),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ]
         let valueSize = (centerValue as NSString).size(withAttributes: valueAttributes)
         let unitSize = (centerUnit as NSString).size(withAttributes: unitAttributes)
+        let captionSize = (caption as NSString).size(withAttributes: captionAttributes)
+        (caption as NSString).draw(
+            at: NSPoint(x: center.x - captionSize.width / 2, y: center.y - 30),
+            withAttributes: captionAttributes)
         (centerValue as NSString).draw(
             at: NSPoint(x: center.x - valueSize.width / 2, y: center.y + 1),
             withAttributes: valueAttributes)
