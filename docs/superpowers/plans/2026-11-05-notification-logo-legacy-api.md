@@ -479,7 +479,8 @@ seam 注释（45-47 行）：
     static func postUpToDateNotification() {
         SystemNotifier.post(title: "Traffic Monitor 已是最新版本",
                             body: "当前 \(AppVersion.current) 即最新发布版。",
-                            identifier: "uptodate-check")
+                            identifier: "uptodate-check",
+                            sound: false)
     }
 ```
 
@@ -492,7 +493,7 @@ Run: `grep -c "UserNotifications\|UNUserNotification" Sources/TrafficMonitor/Upd
 Expected: `0`
 
 Run: `grep -rn "UserNotifications\|UNUserNotification" Sources/ | grep -v SelfTest`
-Expected: 无输出（全仓库 Swift 侧 UN 引用清零）。
+Expected: 仅 SystemNotifier.swift:6 一处——文档注释里的历史说明（解释为何不用 UN），非 import/非 API 调用；代码级 UN 依赖为 0。
 
 - [ ] **Step 4: Commit**
 
