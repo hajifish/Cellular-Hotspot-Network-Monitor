@@ -408,7 +408,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
 - [ ] **Step 5: 删除 UN delegate 扩展**
 
-文件末尾 `extension MenuBarController { ... }` 中两个 `userNotificationCenter` 方法（didReceive / willPresent，约 631-651 行）整体删除（didReceive 的 openHome 路由已由 Step 2 的 activation router 承接；willPresent 的前台显示为 UN 专属语义，老接口横幅本就照常显示）。
+文件末尾 `extension MenuBarController { ... }` 中两个 `userNotificationCenter` 方法（didReceive / willPresent，约 631-651 行）整体删除（didReceive 的 openHome 路由已由 Step 2 的 activation router 承接；willPresent 的前台显示语义由桥 delegate 的 `shouldPresentNotification:` 承接——终审发现老接口前台默认静默，已在终审修复轮 487f597 补上）。
 
 - [ ] **Step 6: 验证**
 
