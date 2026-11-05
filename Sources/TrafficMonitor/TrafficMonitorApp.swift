@@ -195,7 +195,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self?.checkAlert()
             self?.checkMilestone()
         }
-        // 老通知接口无需授权请求（2026-11-05 探针实验证实），首次启动不再弹系统授权框
         // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装），里程碑对齐
         monitor.onReset = { [weak self] in
             guard let self else { return }
@@ -216,7 +215,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateService.confirmRestartHandler = { [weak self] release, completion in
             self?.showRestartConfirm(release: release, completion: completion)
         }
-        // 老通知接口点击路由：更新类通知（"update-" 前缀）点击后打开主页（沿用 UN 时代行为）
+        // 通知点击路由 + 授权请求（UN delegate 接线与授权已收编在 SystemNotifier，勿另处重复请求）：
+        // 更新类通知（"update-" 前缀）点击后打开主页（沿用 0.9.x 行为）
         SystemNotifier.configureActivation { [weak self] identifier in
             guard identifier.hasPrefix("update-") else { return }
             self?.openHome()
@@ -510,11 +510,25 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let used = ByteFormat.string(usedBytes)
         let limit = ByteFormat.string(alert.threshold ?? 0)
         logger.info("alert fired: used=\(used, privacy: .public) threshold=\(limit, privacy: .public)")
-        // "滴"一声是必达通道：老通知接口无失败回调，通知本身不可确证送达
-        NSSound(named: "Tink")?.play()
+        NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
         SystemNotifier.post(title: "Traffic Monitor 流量告警",
                             body: "已用 \(used)，达到 \(limit)。",
-                            identifier: UUID().uuidString)
+                            identifier: UUID().uuidString,
+                            onFailure: { [weak self] _ in
+                                // onFailure 已由 SystemNotifier 派发主线程；Task 只为静态跨 MainActor 隔离
+                                Task { @MainActor in self?.showFallbackAlert(used: used, limit: limit) }
+                            })
+    }
+
+    /// 通知投递失败时的兜底：应用内模态弹窗（0.9.1 语义）
+    private func showFallbackAlert(used: String, limit: String) {
+        let dialog = NSAlert()
+        dialog.alertStyle = .warning
+        dialog.messageText = "流量告警"
+        dialog.informativeText = "自开始计时已使用 \(used)，达到设定的 \(limit)。"
+        dialog.addButton(withTitle: "好的")
+        NSApp.activate(ignoringOtherApps: true)
+        dialog.runModal()
     }
 
     // MARK: - 软件更新（主页卡片是唯一升级操作入口；菜单条目仅以状态后缀提示）
