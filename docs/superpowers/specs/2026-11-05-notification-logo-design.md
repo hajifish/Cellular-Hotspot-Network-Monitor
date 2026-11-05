@@ -65,6 +65,7 @@ void tm_set_activation_handler(void (*handler)(const char *identifier, int activ
 ## 风险（如实）
 
 - Apple 在未来 macOS 移除老接口运行时 → 通知静默失效；`tm_notification_available` + 日志可检测。参照应用同样暴露此风险（作者已接受）。届时再评估（UN 回退或证书）；
+- 跨进程点击局限：由**上一进程**投递的更新通知（如应用内更新重启后残留横幅）被点击时，`didActivateNotification` 可能不触发（新进程 delegate 尚未注册）——UN 时代可处理重启后点击，老接口不可靠。与参照应用同水平，接受；
 - 老接口横幅在通知中心历史 / 专注模式的呈现与新接口可能有细微差别——目检覆盖；
 - `deliverNotification` 无失败回调：告警"必达性"由 NSSound（始终播放）+ 菜单栏状态兜底（现状已有）。
 

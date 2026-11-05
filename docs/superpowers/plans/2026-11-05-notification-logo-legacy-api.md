@@ -535,12 +535,13 @@ Expected: 末行 `Built ./Traffic Monitor.app`（脚本零改动——图标/资
 
 - [ ] **Step 4: 用户目检（亲测，不碰装机版）**
 
-启动 `./Traffic Monitor.app/Contents/MacOS/TrafficMonitor`（直接跑二进制，与装机版共存），核对 4 点：
+启动 `./Traffic Monitor.app/Contents/MacOS/TrafficMonitor`（直接跑二进制，与装机版共存），核对 5 点：
 
 1. 菜单「检查更新」→「已是最新版本」横幅出现且**左侧为应用 logo**（非灰色占位）；
 2. 横幅带默认提示音；
-3. （若期间有新版本通知）点击通知 → 打开主页更新卡片；
-4. 启动时**不再弹**系统通知授权框。
+3. **主页窗口处于前台时**横幅仍显示（终审补：shouldPresentNotification 恢复前台显示语义）；
+4. （若期间有新版本通知）点击通知 → 打开主页更新卡片；
+5. 启动时**不再弹**系统通知授权框。
 
 任一不过 → 回到对应 Task 修；全过 → 通知用户分支已就绪，等用户明确指令再发 PR（项目规则：PR/发版须用户亲口说）。
 
