@@ -4,8 +4,9 @@ import AppKit
 /// 其上叠黑色半透明遮罩保证白字可读。图片由 make-app.sh 强制打包进
 /// Contents/Resources，缺失即视为打包损坏，fail-fast、无回退路径。
 final class DashboardBackgroundView: NSView {
-    /// 遮罩浓度：蓝青中亮背景图上的白字可读性（目检标定值；调整请改此常量）
-    static let scrimAlpha: CGFloat = 0.5
+    /// 遮罩浓度：蓝青中亮背景图上的白字可读性（目检标定值；调整请改此常量。
+    /// 2026-11-05 v0.9.1：0.5 → 0.3，用户反馈整体观感需更亮）
+    static let scrimAlpha: CGFloat = 0.3
 
     /// 黑色遮罩层（最底层子视图，白字可读性前提）
     private let scrim = NSView()
