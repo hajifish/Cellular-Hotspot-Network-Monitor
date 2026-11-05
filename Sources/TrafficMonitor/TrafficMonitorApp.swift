@@ -119,6 +119,8 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     static let gigabyte: UInt64 = 1_000_000_000
     static let megabyte: UInt64 = 1_000_000
     static let alertDefaultsKey = "alertThresholdBytes"
+    /// 首次启动已展示过主页的标记（此后启动不再自动弹出）
+    static let firstLaunchHomeKey = "didShowHomeOnFirstLaunch"
     static private(set) var shared: MenuBarController!
 
     private let monitor = TrafficMonitor()
@@ -220,6 +222,12 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         updateService.startAutomaticChecks()
         monitor.start()
         refresh()
+        // 首次启动（装机后第一次运行）默认打开主页，让新用户发现仪表盘；此后不再自动弹出
+        // （2026-11-05 需求；SHOWHOME 环境变量仍为诊断用强制开关）
+        if !UserDefaults.standard.bool(forKey: Self.firstLaunchHomeKey) {
+            UserDefaults.standard.set(true, forKey: Self.firstLaunchHomeKey)
+            homeController.show()
+        }
         // 诊断/验证用：启动即打开主页 / 弹出菜单（重截截图等验证场景）
         if ProcessInfo.processInfo.environment["TRAFFICMONITOR_SHOWHOME"] == "1" {
             homeController.show()
