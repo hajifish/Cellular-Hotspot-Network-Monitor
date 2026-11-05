@@ -66,8 +66,33 @@ else { fatalError("背景图资源缺失：打包不完整") }
 - **打包校验目检**：临时移走 `Assets/default-background.png` 跑 `make-app.sh`，确认脚本失败退出；
 - **文档**：CHANGELOG `[Unreleased]` 加条目。
 
+## 追加需求（2026-11-05 用户确认）：里程碑提示门控
+
+**现状**：`MilestoneTracker` 自上次重置起每满 1 GB 发一条系统通知（`checkMilestone()` 每秒驱动），与告警状态无关。
+
+**新语义**：仅当告警阈值已设置（`alert.threshold != nil`）时才发每 GB 提示；告警关闭则该功能整体取消：
+
+- 关闭期间 tracker 不推进（不调 `update`），状态冻结；
+- 重新设置告警（nil → 非 nil）时 `resync` 到当前总量之上的第一个整 GB——关闭期间消耗的 GB 不补发通知；
+- 启动恢复（`restoreAlertThreshold`）出非 nil 阈值时同样 `resync`——顺带消除重启后按持久化累计补发旧里程碑的既有怪癖；
+- 同步重置路径（`applyAlertThreshold` syncReset）复位后 `resync(0)` → 1 GB 起步，与 `onReset` 既有行为一致（幂等）。
+
+**实现**（沿用静态编排函数模式，对齐 `applyAlertThreshold`）：
+
+```swift
+/// 里程碑门控：告警未设置则整体静默（tracker 冻结不推进）
+static func milestoneReached(totalBytes: UInt64, alertThreshold: UInt64?,
+                             tracker: inout MilestoneTracker) -> UInt64?
+```
+
+- `applyAlertThreshold` 增加 `milestone: inout MilestoneTracker` 参数，`bytes != nil` 时在 tick/重置之后 `resync(meteredTotal)`；
+- `checkMilestone()`/`restoreAlertThreshold()` 改走上述静态函数/直接 resync。
+
+**自测**（TrafficMonitorAppTests）：门控静默且 tracker 冻结、阈值已设时正常越界报告、设阈值（不重置/同步重置）后里程碑对齐、关闭不动里程碑。
+
 ## 明确不做
 
 - 背景图可配置/用户自选（“固化”语义，无偏好项）；
 - 菜单栏、告警弹窗的背景定制；
-- 图片运行时预处理（缩放缓存等，720pt 窗口直接渲染无压力）。
+- 图片运行时预处理（缩放缓存等，720pt 窗口直接渲染无压力）；
+- 里程碑步长/开关的独立偏好项（完全跟随告警设置，无独立入口）。
