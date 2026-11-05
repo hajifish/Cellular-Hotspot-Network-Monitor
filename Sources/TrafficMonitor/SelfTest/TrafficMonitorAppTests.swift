@@ -16,6 +16,7 @@ enum TrafficMonitorAppTests {
         applyAlertThresholdResyncsMilestoneOnArm()
         applyAlertThresholdSyncResetRestartsMilestoneFromOneGB()
         applyAlertThresholdLeavesMilestoneWhenDisabling()
+        milestoneDoesNotBackfillGbConsumedWhileDisabled()
     }
 
     static func alertResetRequiresExplicitConfirmation() {
@@ -153,14 +154,36 @@ enum TrafficMonitorAppTests {
     }
 
     /// 设置阈值 + 同步重置：累计清零，里程碑从 1 GB 重新起步
+    /// （monitor 须带 GB 级旧总量：若 resync 误放在 reset 之前，会读到旧总量 → next = 3 GB，测试即挂）
     static func applyAlertThresholdSyncResetRestartsMilestoneFromOneGB() {
-        let monitor = makeMonitor()
+        let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
+        monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
+        monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 2_600_000_000, tx: 0)]) // 旧周期 2.6 GB
         var milestone = MilestoneTracker()
-        _ = milestone.update(totalBytes: 2_600_000_000)
+        milestone.resync(totalBytes: 2_600_000_000) // 旧周期已对齐：next = 3 GB
         let alert = TrafficAlert()
         MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
                                               monitor: monitor, alert: alert, milestone: &milestone)
-        TestRun.expectEqual(milestone.next, MilestoneTracker.step, "sync reset → 1GB restart")
+        TestRun.expectEqual(milestone.next, MilestoneTracker.step, "sync reset → 1GB restart from zeroed total")
+    }
+
+    /// 关闭期间消耗的 GB 不补发：重新武装后越过旧边界静默，自新边界起恢复
+    static func milestoneDoesNotBackfillGbConsumedWhileDisabled() {
+        var tracker = MilestoneTracker()
+        _ = tracker.update(totalBytes: 1_200_000_000) // next = 2 GB
+        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 5_400_000_000,
+                                                          alertThreshold: nil,
+                                                          tracker: &tracker) == nil,
+                       "silent while disabled")
+        tracker.resync(totalBytes: 5_400_000_000) // 模拟重新设置告警时的对齐 → next = 6 GB
+        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 5_400_000_000,
+                                                          alertThreshold: MenuBarController.gigabyte,
+                                                          tracker: &tracker) == nil,
+                       "GB consumed while disabled not backfilled")
+        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 6_000_000_000,
+                                                          alertThreshold: MenuBarController.gigabyte,
+                                                          tracker: &tracker) == 6 * MenuBarController.gigabyte,
+                       "reporting resumes at next full GB")
     }
 
     /// 切「关闭」：里程碑不动（保持冻结）

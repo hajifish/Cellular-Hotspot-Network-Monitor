@@ -488,8 +488,13 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         content.body = "累计已用 \(ByteFormat.string(totalBytes))。"
         content.sound = .default
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { error in
-            _ = error // 通知不可用时静默：里程碑仅为提示性质
+        UNUserNotificationCenter.current().add(request) { [weak self] error in
+            // 里程碑仅为提示性质，不弹兜底；但投递失败要留日志，否则排查无从下手
+            if let error {
+                Task { @MainActor in
+                    self?.logger.error("milestone notification failed: \(String(describing: error), privacy: .public)")
+                }
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 import AppKit
 
-/// 主页窗口：固化图片背景仪表盘（aspect-fill + 深色遮罩），左列（汇总条 + 接口卡片堆叠）+ 右侧总累计告警圆环 + 可折叠的 120 秒速率图
+/// 主页窗口：固化图片背景仪表盘（aspect-fill + 深色遮罩），左列（汇总条 + 接口卡片左右并排）+ 右侧总累计告警圆环 + 可折叠的 120 秒速率图
 @MainActor
 final class HomePageController {
     /// 告警汇总的展示状态
@@ -52,7 +52,7 @@ final class HomePageController {
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
-        window.appearance = NSAppearance(named: .darkAqua) // 仪表盘恒为深色玻璃
+        window.appearance = NSAppearance(named: .darkAqua) // 仪表盘恒为深色外观（固化深色背景图，保障白字可读）
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.isOpaque = false

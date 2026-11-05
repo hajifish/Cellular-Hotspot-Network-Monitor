@@ -12,6 +12,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp ".build/$CONFIG/TrafficMonitor" "$APP/Contents/MacOS/TrafficMonitor"
 cp ".build/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 cp "Assets/default-background.png" "$APP/Contents/Resources/default-background.png"
+# 挡住「图在但损坏」：sips 解不出尺寸即非零退出（与缺图同级的打包失败）
+sips -g pixelWidth "$APP/Contents/Resources/default-background.png" >/dev/null
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

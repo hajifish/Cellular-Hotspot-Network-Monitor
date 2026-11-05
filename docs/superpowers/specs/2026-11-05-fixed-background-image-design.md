@@ -73,7 +73,7 @@ else { fatalError("背景图资源缺失：打包不完整") }
 **新语义**：仅当告警阈值已设置（`alert.threshold != nil`）时才发每 GB 提示；告警关闭则该功能整体取消：
 
 - 关闭期间 tracker 不推进（不调 `update`），状态冻结；
-- 重新设置告警（nil → 非 nil）时 `resync` 到当前总量之上的第一个整 GB——关闭期间消耗的 GB 不补发通知；
+- 重新设置告警（nil → 非 nil）时 `resync` 到当前总量之上的第一个整 GB——关闭期间消耗的 GB 不补发通知（非 nil → 非 nil 调整阈值时 resync 幂等，无行为差异）；
 - 启动恢复（`restoreAlertThreshold`）出非 nil 阈值时同样 `resync`——顺带消除重启后按持久化累计补发旧里程碑的既有怪癖；
 - 同步重置路径（`applyAlertThreshold` syncReset）复位后 `resync(0)` → 1 GB 起步，与 `onReset` 既有行为一致（幂等）。
 
