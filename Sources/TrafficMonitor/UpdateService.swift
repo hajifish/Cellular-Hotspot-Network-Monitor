@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 /// 更新流程状态
 enum UpdateState: Equatable {
@@ -55,9 +54,6 @@ final class UpdateService {
     private var notifiedTag: String?
     private var stagedAppURL: URL?
     private var cancellingDownload = false
-
-    /// 通知投递等更新侧日志（与 TrafficMonitor.swift / TrafficMonitorApp.swift 同一 subsystem）
-    private static let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "update")
 
     init(checker: UpdateChecking = GithubReleaseChecker(),
          installer: UpdateDownloading = UpdateInstaller()) {
@@ -136,7 +132,8 @@ final class UpdateService {
     static func postUpToDateNotification() {
         SystemNotifier.post(title: "Traffic Monitor 已是最新版本",
                             body: "当前 \(AppVersion.current) 即最新发布版。",
-                            identifier: "uptodate-check")
+                            identifier: "uptodate-check",
+                            sound: false)
     }
 
     // MARK: 下载
