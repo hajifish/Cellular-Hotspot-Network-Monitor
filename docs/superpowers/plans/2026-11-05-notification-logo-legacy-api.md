@@ -145,8 +145,8 @@ let package = Package(
         //   单模块方案是唯一在 `swift build` 下完全确定的结构。）
         .executableTarget(
             name: "TrafficMonitor",
-            path: "Sources/TrafficMonitor",
-            dependencies: ["TMNotify"]
+            dependencies: ["TMNotify"],
+            path: "Sources/TrafficMonitor"
         ),
     ]
 )
