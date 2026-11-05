@@ -319,17 +319,18 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
     }
 
     private func restoreAlertThreshold() {
-        // 诊断/验证用：启动即设一个极低阈值（如 TRAFFICMONITOR_ALERT_MB=1）
+        // 阈值来源：诊断/验证用环境变量（如 TRAFFICMONITOR_ALERT_MB=1）优先，否则取持久化值
+        let threshold: UInt64?
         if let debugMB = ProcessInfo.processInfo.environment["TRAFFICMONITOR_ALERT_MB"],
            let value = Double(debugMB), value > 0 {
-            alert.setThreshold(UInt64(value * Double(Self.megabyte)), baselineBytes: 0)
-            milestoneTracker.resync(totalBytes: currentMeteredTotal())
-            return
+            threshold = UInt64(value * Double(Self.megabyte))
+        } else {
+            let stored = UserDefaults.standard.object(forKey: Self.alertDefaultsKey) as? Int64
+            threshold = stored.map { UInt64(max(0, $0)) }
         }
-        let stored = UserDefaults.standard.object(forKey: Self.alertDefaultsKey) as? Int64
-        alert.setThreshold(stored.map { UInt64(max(0, $0)) }, baselineBytes: 0)
-        if alert.threshold != nil {
-            // 启动恢复即视为「已设置」：里程碑对齐当前累计，不按持久化旧量补发（2026-11-05）
+        alert.setThreshold(threshold, baselineBytes: 0)
+        // 启动恢复即视为「已设置」：里程碑对齐当前累计，不按持久化旧量补发（2026-11-05）
+        if threshold != nil {
             milestoneTracker.resync(totalBytes: currentMeteredTotal())
         }
     }
