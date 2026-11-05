@@ -345,14 +345,19 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
-    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，会修改传入的 monitor/alert/milestone，自测直接调用）：
+    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，自测直接调用）：
     /// 实际阈值 + 同步重置 → 先补一拍结算（模态弹窗期间采样停摆），再清零全部累计、以 0 为告警基线；
     /// 仅设置告警 → 保留累计并将全部当前累计计入新告警进度；
-    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）；
-    /// 设置实际阈值时里程碑对齐当前总量（关闭期间冻结的里程碑不补发旧通知，2026-11-05 需求）
+    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
+    /// 设置实际阈值时返回对齐后的里程碑（当前总量之上的第一个整 GB——关闭期间冻结的不补发，2026-11-05 需求）；
+    /// 关闭时返回 nil = 调用方实例侧里程碑保持不动（observer 期间的推进不回卷）。
+    /// ⚠️ milestone 必须按值传入、以返回值带回，不能用 inout：tick/reset 会同步触发
+    /// observer 重入 checkMilestone 的 &milestoneTracker，inout 的独占访问横跨重入
+    /// 会触发 Swift 运行时独占检查 fatalError（v0.9.0/0.9.1「设置告警即崩」的根因）。
+    @discardableResult
     static func applyAlertThreshold(_ bytes: UInt64?, syncReset: Bool,
                                     monitor: TrafficMonitor, alert: TrafficAlert,
-                                    milestone: inout MilestoneTracker) {
+                                    milestone: MilestoneTracker) -> MilestoneTracker? {
         if bytes != nil {
             // 调用前可能经历了 runModal 模态（采样定时器停摆）；
             // 先补一拍把这段时间的流量结算进旧周期，再重置/读基线
@@ -362,16 +367,19 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             monitor.reset(nil)
         }
         alert.setThreshold(bytes, baselineBytes: syncReset ? meteredTotal(of: monitor) : 0)
-        if bytes != nil {
-            milestone.resync(totalBytes: meteredTotal(of: monitor))
-        }
+        guard bytes != nil else { return nil }
+        var milestone = milestone
+        milestone.resync(totalBytes: meteredTotal(of: monitor))
+        return milestone
     }
 
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
         // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
         let syncReset = bytes != nil && askSyncReset() // && 短路：仅设实际阈值时弹窗
-        Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert,
-                                  milestone: &milestoneTracker)
+        if let aligned = Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor,
+                                                  alert: alert, milestone: milestoneTracker) {
+            milestoneTracker = aligned
+        }
         if persist {
             if let bytes {
                 UserDefaults.standard.set(Int64(bytes), forKey: Self.alertDefaultsKey)
