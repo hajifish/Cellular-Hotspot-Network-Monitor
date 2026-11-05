@@ -1,6 +1,5 @@
 import Foundation
 import os
-import UserNotifications
 
 /// 更新流程状态
 enum UpdateState: Equatable {
@@ -43,8 +42,8 @@ final class UpdateService {
     var exitHandler: (Int32) -> Void = { exit($0) }
     /// 测试注入点：是否从打包 .app 运行
     var isBundledApp: () -> Bool = { AppVersion.isBundledApp }
-    /// 测试注入点：发现新版本时的系统通知（UNUserNotificationCenter 在无 bundle 的
-    /// 自测二进制里会直接抛异常，故不可用默认实现直接跑自测）
+    /// 测试注入点：发现新版本时的系统通知（老通知接口在裸二进制下 center 为 nil、
+    /// 安全 no-op，默认实现本可直跑；注入仅避免自测弹真通知）
     var versionAvailableNotifier: (ReleaseInfo) -> Void = UpdateService.postUpdateNotification
     /// 测试注入点：手动检查得出「已是最新」时的系统通知（同上，自测注入覆盖）
     var upToDateNotifier: () -> Void = UpdateService.postUpToDateNotification
@@ -124,39 +123,20 @@ final class UpdateService {
     }
 
     static func postUpdateNotification(_ release: ReleaseInfo) {
-        let content = UNMutableNotificationContent()
-        content.title = "Traffic Monitor 有新版本"
-        content.body = "\(release.tagName) 可更新（当前 \(AppVersion.current)）。"
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: "update-\(release.tagName)", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { error in
-            // 投递失败记 error 级日志（菜单/主页仍有入口，但失败必须可检索）
-            if let error {
-                Self.logger.error("update notification delivery failed (\(release.tagName, privacy: .public)): \(String(describing: error), privacy: .public)")
-            } else {
-                Self.logger.debug("update notification delivered: \(release.tagName, privacy: .public)")
-            }
-        }
+        SystemNotifier.post(title: "Traffic Monitor 有新版本",
+                            body: "\(release.tagName) 可更新（当前 \(AppVersion.current)）。",
+                            identifier: "update-\(release.tagName)")
     }
 
     /// 手动检查确认已是最新：轻量通知告知即可。identifier 不带 "update-" 前缀，
     /// 点击不跳主页（无升级内容可看）。
-    /// 注意：是否跳主页的判定在 MenuBarController 的
-    /// `userNotificationCenter(_:didReceive:)` 里按 "update-" 前缀检查——
-    /// "uptodate" 与 "update-" 一字之差，重命名 identifier 时两处必须同步，防静默破坏
+    /// 注意：是否跳主页的判定在 MenuBarController 的 SystemNotifier activation
+    /// router 里按 "update-" 前缀检查——"uptodate" 与 "update-" 一字之差，
+    /// 重命名 identifier 时两处必须同步，防静默破坏
     static func postUpToDateNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "Traffic Monitor 已是最新版本"
-        content.body = "当前 \(AppVersion.current) 即最新发布版。"
-        let request = UNNotificationRequest(identifier: "uptodate-check", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { error in
-            // 手动「已是最新」通知是唯一即时反馈，投递失败必须留痕
-            if let error {
-                Self.logger.error("up-to-date notification delivery failed: \(String(describing: error), privacy: .public)")
-            } else {
-                Self.logger.debug("up-to-date notification delivered")
-            }
-        }
+        SystemNotifier.post(title: "Traffic Monitor 已是最新版本",
+                            body: "当前 \(AppVersion.current) 即最新发布版。",
+                            identifier: "uptodate-check")
     }
 
     // MARK: 下载
