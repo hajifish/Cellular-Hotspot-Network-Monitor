@@ -323,10 +323,15 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         if let debugMB = ProcessInfo.processInfo.environment["TRAFFICMONITOR_ALERT_MB"],
            let value = Double(debugMB), value > 0 {
             alert.setThreshold(UInt64(value * Double(Self.megabyte)), baselineBytes: 0)
+            milestoneTracker.resync(totalBytes: currentMeteredTotal())
             return
         }
         let stored = UserDefaults.standard.object(forKey: Self.alertDefaultsKey) as? Int64
         alert.setThreshold(stored.map { UInt64(max(0, $0)) }, baselineBytes: 0)
+        if alert.threshold != nil {
+            // 启动恢复即视为「已设置」：里程碑对齐当前累计，不按持久化旧量补发（2026-11-05）
+            milestoneTracker.resync(totalBytes: currentMeteredTotal())
+        }
     }
 
     private func currentMeteredTotal() -> UInt64 {
@@ -339,12 +344,14 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
-    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，会修改传入的 monitor/alert，自测直接调用）：
+    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，会修改传入的 monitor/alert/milestone，自测直接调用）：
     /// 实际阈值 + 同步重置 → 先补一拍结算（模态弹窗期间采样停摆），再清零全部累计、以 0 为告警基线；
     /// 仅设置告警 → 保留累计并将全部当前累计计入新告警进度；
-    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
+    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）；
+    /// 设置实际阈值时里程碑对齐当前总量（关闭期间冻结的里程碑不补发旧通知，2026-11-05 需求）
     static func applyAlertThreshold(_ bytes: UInt64?, syncReset: Bool,
-                                    monitor: TrafficMonitor, alert: TrafficAlert) {
+                                    monitor: TrafficMonitor, alert: TrafficAlert,
+                                    milestone: inout MilestoneTracker) {
         if bytes != nil {
             // 调用前可能经历了 runModal 模态（采样定时器停摆）；
             // 先补一拍把这段时间的流量结算进旧周期，再重置/读基线
@@ -354,12 +361,16 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             monitor.reset(nil)
         }
         alert.setThreshold(bytes, baselineBytes: syncReset ? meteredTotal(of: monitor) : 0)
+        if bytes != nil {
+            milestone.resync(totalBytes: meteredTotal(of: monitor))
+        }
     }
 
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
         // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
         let syncReset = bytes != nil && askSyncReset() // && 短路：仅设实际阈值时弹窗
-        Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert)
+        Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert,
+                                  milestone: &milestoneTracker)
         if persist {
             if let bytes {
                 UserDefaults.standard.set(Int64(bytes), forKey: Self.alertDefaultsKey)
@@ -455,10 +466,21 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         fireAlert(usedBytes: progress)
     }
 
-    /// 每 1 GB 里程碑：自上次重置起累计每满 1 GB 提醒一条
+    /// 里程碑门控（静态编排）：告警未设置 → 整体静默且 tracker 冻结不推进；
+    /// 已设置 → 透传 tracker.update（返回本次越过的边界，无则 nil）
+    static func milestoneReached(totalBytes: UInt64, alertThreshold: UInt64?,
+                                 tracker: inout MilestoneTracker) -> UInt64? {
+        guard alertThreshold != nil else { return nil }
+        return tracker.update(totalBytes: totalBytes)
+    }
+
+    /// 每 1 GB 里程碑：自上次重置起累计每满 1 GB 提醒一条；
+    /// 仅在设置了流量告警时启用（2026-11-05 需求），关闭告警即整体静默
     private func checkMilestone() {
         let totalBytes = currentMeteredTotal()
-        guard let reached = milestoneTracker.update(totalBytes: totalBytes) else { return }
+        guard let reached = Self.milestoneReached(totalBytes: totalBytes,
+                                                  alertThreshold: alert.threshold,
+                                                  tracker: &milestoneTracker) else { return }
         let gb = reached / MenuBarController.gigabyte
         logger.info("milestone reached: \(gb, privacy: .public) GB, total=\(ByteFormat.string(totalBytes), privacy: .public)")
         let content = UNMutableNotificationContent()
