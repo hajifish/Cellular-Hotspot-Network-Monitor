@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import os
-import UserNotifications
 
 @MainActor
 private final class AlertResetDialog: NSPanel {
@@ -115,10 +114,12 @@ struct Main {
 }
 
 @MainActor
-final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCenterDelegate {
+final class MenuBarController: NSObject, NSMenuDelegate {
     static let gigabyte: UInt64 = 1_000_000_000
     static let megabyte: UInt64 = 1_000_000
     static let alertDefaultsKey = "alertThresholdBytes"
+    /// 首次启动已展示过主页的标记（此后启动不再自动弹出）
+    static let firstLaunchHomeKey = "didShowHomeOnFirstLaunch"
     static private(set) var shared: MenuBarController!
 
     private let monitor = TrafficMonitor()
@@ -194,8 +195,7 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             self?.checkAlert()
             self?.checkMilestone()
         }
-        // 里程碑与告警都依赖系统通知，首次启动请求授权（已授权则静默返回）
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // 老通知接口无需授权请求（2026-11-05 探针实验证实），首次启动不再弹系统授权框
         // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装），里程碑对齐
         monitor.onReset = { [weak self] in
             guard let self else { return }
@@ -216,10 +216,20 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         updateService.confirmRestartHandler = { [weak self] release, completion in
             self?.showRestartConfirm(release: release, completion: completion)
         }
-        UNUserNotificationCenter.current().delegate = self
+        // 老通知接口点击路由：更新类通知（"update-" 前缀）点击后打开主页（沿用 UN 时代行为）
+        SystemNotifier.configureActivation { [weak self] identifier in
+            guard identifier.hasPrefix("update-") else { return }
+            self?.openHome()
+        }
         updateService.startAutomaticChecks()
         monitor.start()
         refresh()
+        // 首次启动（装机后第一次运行）默认打开主页，让新用户发现仪表盘；此后不再自动弹出
+        // （2026-11-05 需求；SHOWHOME 环境变量仍为诊断用强制开关）
+        if !UserDefaults.standard.bool(forKey: Self.firstLaunchHomeKey) {
+            UserDefaults.standard.set(true, forKey: Self.firstLaunchHomeKey)
+            homeController.show()
+        }
         // 诊断/验证用：启动即打开主页 / 弹出菜单（重截截图等验证场景）
         if ProcessInfo.processInfo.environment["TRAFFICMONITOR_SHOWHOME"] == "1" {
             homeController.show()
@@ -345,14 +355,19 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         return store.wifi.rx + store.wifi.tx + store.iphone.rx + store.iphone.tx
     }
 
-    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，会修改传入的 monitor/alert/milestone，自测直接调用）：
+    /// 应用告警阈值的编排核心（静态编排函数：不依赖 UI/持久化，自测直接调用）：
     /// 实际阈值 + 同步重置 → 先补一拍结算（模态弹窗期间采样停摆），再清零全部累计、以 0 为告警基线；
     /// 仅设置告警 → 保留累计并将全部当前累计计入新告警进度；
-    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）；
-    /// 设置实际阈值时里程碑对齐当前总量（关闭期间冻结的里程碑不补发旧通知，2026-11-05 需求）
+    /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
+    /// 设置实际阈值时返回对齐后的里程碑（当前总量之上的第一个整 GB——关闭期间冻结的不补发，2026-11-05 需求）；
+    /// 关闭时返回 nil = 调用方实例侧里程碑保持不动（observer 期间的推进不回卷）。
+    /// ⚠️ milestone 必须按值传入、以返回值带回，不能用 inout：tick/reset 会同步触发
+    /// observer 重入 checkMilestone 的 &milestoneTracker，inout 的独占访问横跨重入
+    /// 会触发 Swift 运行时独占检查 fatalError（v0.9.0/0.9.1「设置告警即崩」的根因）。
+    @discardableResult
     static func applyAlertThreshold(_ bytes: UInt64?, syncReset: Bool,
                                     monitor: TrafficMonitor, alert: TrafficAlert,
-                                    milestone: inout MilestoneTracker) {
+                                    milestone: MilestoneTracker) -> MilestoneTracker? {
         if bytes != nil {
             // 调用前可能经历了 runModal 模态（采样定时器停摆）；
             // 先补一拍把这段时间的流量结算进旧周期，再重置/读基线
@@ -362,20 +377,22 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
             monitor.reset(nil)
         }
         alert.setThreshold(bytes, baselineBytes: syncReset ? meteredTotal(of: monitor) : 0)
-        if bytes != nil {
-            milestone.resync(totalBytes: meteredTotal(of: monitor))
-        }
+        guard bytes != nil else { return nil }
+        var milestone = milestone
+        milestone.resync(totalBytes: meteredTotal(of: monitor))
+        return milestone
     }
 
     private func applyAlertThreshold(_ bytes: UInt64?, persist: Bool) {
         // 设置实际阈值时询问是否同步清零全部累计、重新计量（切「关闭」不问）
         let syncReset = bytes != nil && askSyncReset() // && 短路：仅设实际阈值时弹窗
-        Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor, alert: alert,
-                                  milestone: &milestoneTracker)
+        if let aligned = Self.applyAlertThreshold(bytes, syncReset: syncReset, monitor: monitor,
+                                                  alert: alert, milestone: milestoneTracker) {
+            milestoneTracker = aligned
+        }
         if persist {
             if let bytes {
                 UserDefaults.standard.set(Int64(bytes), forKey: Self.alertDefaultsKey)
-                requestNotificationAuthorization()
             } else {
                 UserDefaults.standard.removeObject(forKey: Self.alertDefaultsKey)
             }
@@ -484,61 +501,20 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
                                                   tracker: &milestoneTracker) else { return }
         let gb = reached / MenuBarController.gigabyte
         logger.info("milestone reached: \(gb, privacy: .public) GB, total=\(ByteFormat.string(totalBytes), privacy: .public)")
-        let content = UNMutableNotificationContent()
-        content.title = "Traffic Monitor 流量里程碑"
-        content.body = "累计已用 \(ByteFormat.string(totalBytes))。"
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { [weak self] error in
-            // 里程碑仅为提示性质，不弹兜底；但投递失败要留日志，否则排查无从下手
-            if let error {
-                Task { @MainActor in
-                    self?.logger.error("milestone notification failed: \(String(describing: error), privacy: .public)")
-                }
-            }
-        }
+        SystemNotifier.post(title: "Traffic Monitor 流量里程碑",
+                            body: "累计已用 \(ByteFormat.string(totalBytes))。",
+                            identifier: UUID().uuidString)
     }
 
     private func fireAlert(usedBytes: UInt64) {
         let used = ByteFormat.string(usedBytes)
         let limit = ByteFormat.string(alert.threshold ?? 0)
         logger.info("alert fired: used=\(used, privacy: .public) threshold=\(limit, privacy: .public)")
-        NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
-        let content = UNMutableNotificationContent()
-        content.title = "Traffic Monitor 流量告警"
-        content.body = "已用 \(used)，达到 \(limit)。"
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { [weak self] error in
-            if error != nil {
-                Task { @MainActor in self?.showFallbackAlert(used: used, limit: limit) }
-            }
-        }
-    }
-
-    /// 通知不可用时的兜底：应用内弹窗
-    private func showFallbackAlert(used: String, limit: String) {
-        let dialog = NSAlert()
-        dialog.alertStyle = .warning
-        dialog.messageText = "流量告警"
-        dialog.informativeText = "自开始计时已使用 \(used)，达到设定的 \(limit)。"
-        dialog.addButton(withTitle: "好的")
-        NSApp.activate(ignoringOtherApps: true)
-        dialog.runModal()
-    }
-
-    private func requestNotificationAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error {
-                Task { @MainActor in
-                    self.logger.error("notification auth error: \(String(describing: error), privacy: .public)")
-                }
-            } else if !granted {
-                Task { @MainActor in
-                    self.logger.info("notification auth denied; will use in-app dialog")
-                }
-            }
-        }
+        // "滴"一声是必达通道：老通知接口无失败回调，通知本身不可确证送达
+        NSSound(named: "Tink")?.play()
+        SystemNotifier.post(title: "Traffic Monitor 流量告警",
+                            body: "已用 \(used)，达到 \(limit)。",
+                            identifier: UUID().uuidString)
     }
 
     // MARK: - 软件更新（主页卡片是唯一升级操作入口；菜单条目仅以状态后缀提示）
@@ -612,24 +588,5 @@ final class MenuBarController: NSObject, NSMenuDelegate, UNUserNotificationCente
         alertItem.attributedTitle = MenuTextBuilder.alertHeader(
             armed: alert.threshold != nil, fired: alert.fired, detail: detail)
         checkUpdateItem.title = UpdatePresentation.menuCheckTitle(for: updateService.state)
-    }
-}
-
-extension MenuBarController {
-    /// 点击更新通知 → 打开主页更新卡片
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                didReceive response: UNNotificationResponse,
-                                withCompletionHandler completionHandler: @escaping () -> Void) {
-        if response.notification.request.identifier.hasPrefix("update-") {
-            openHome()
-        }
-        completionHandler()
-    }
-
-    /// 应用前台时通知横幅也显示（对既有告警/里程碑通知同为改善）
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .sound])
     }
 }

@@ -86,6 +86,7 @@ static func milestoneReached(totalBytes: UInt64, alertThreshold: UInt64?,
 ```
 
 - `applyAlertThreshold` 增加 `milestone: inout MilestoneTracker` 参数，`bytes != nil` 时在 tick/重置之后 `resync(meteredTotal)`；
+  **2026-11-05 修正**：inout 的独占访问横跨 tick/reset 同步触发的 observer 重入（`checkMilestone` 的 `&milestoneTracker`），命中 Swift 运行时独占检查 fatalError——表现为「设置告警即崩」（v0.9.0/0.9.1）。改为按值传入、返回 `MilestoneTracker?`（关闭返回 nil = 不动实例侧里程碑），语义与测试口径不变；
 - `checkMilestone()`/`restoreAlertThreshold()` 改走上述静态函数/直接 resync。
 
 **自测**（TrafficMonitorAppTests）：门控静默且 tracker 冻结、阈值已设时正常越界报告、设阈值（不重置/同步重置）后里程碑对齐、关闭不动里程碑。
