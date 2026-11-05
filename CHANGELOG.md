@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-05
+
 ### 修复 (Fixed)
 
 - 修复从 0.9.x 升级后所有系统通知收不到的问题：0.10.0 曾把通知从 UNUserNotificationCenter 切到 NSUserNotification 老接口（为让横幅带应用图标），但 macOS usernoted 对用过 UN 框架的 bundle id 永久标记为「现代客户端」，此后老接口投递一律被系统拒收（不允许混合 modern/legacy 客户端），且老接口投递无失败回调、无法感知降级。本版回退 UN 通知通道，恢复 0.9.x 送达链路。
