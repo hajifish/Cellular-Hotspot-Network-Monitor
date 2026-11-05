@@ -1,6 +1,6 @@
 import AppKit
 
-/// 主页窗口：深色玻璃仪表盘，左列（汇总条 + 接口卡片堆叠）+ 右侧总累计告警圆环 + 可折叠的 120 秒速率图
+/// 主页窗口：固化图片背景仪表盘（aspect-fill + 深色遮罩），左列（汇总条 + 接口卡片左右并排）+ 右侧总累计告警圆环 + 可折叠的 120 秒速率图
 @MainActor
 final class HomePageController {
     /// 告警汇总的展示状态
@@ -52,7 +52,7 @@ final class HomePageController {
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
-        window.appearance = NSAppearance(named: .darkAqua) // 仪表盘恒为深色玻璃
+        window.appearance = NSAppearance(named: .darkAqua) // 仪表盘恒为深色外观（固化深色背景图，保障白字可读）
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.isOpaque = false
@@ -98,12 +98,10 @@ final class HomePageController {
     // MARK: - UI 构建
 
     private func buildUI() {
-        let visual = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 720, height: 470))
-        visual.material = .hudWindow
-        visual.blendingMode = .behindWindow
-        visual.state = .active
-        window.contentView = visual
-        let content = visual
+        // 固化背景：内置图片 aspect-fill + 黑色遮罩（2026-11-05 需求，替代原 hudWindow 玻璃）
+        let content = DashboardBackgroundView(frame: NSRect(x: 0, y: 0, width: 720, height: 470),
+                                              image: DashboardBackgroundView.loadBundledImage())
+        window.contentView = content
 
         // 顶部右侧：状态栏显示开关（累计流量在前、实时速率在后；都关 = 状态栏只显示图标）
         // 选中项铺圆角胶囊底色 + 白色加粗，未选无底色灰字，一眼可辨
