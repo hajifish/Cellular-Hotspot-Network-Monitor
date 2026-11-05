@@ -42,7 +42,7 @@ enum TrafficMonitorAppTests {
         // 「仅设置告警」：累计保留并计入新告警进度
         let monitor = makeMonitor()
         let alert = TrafficAlert()
-                MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: false,
+        MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: false,
                                               monitor: monitor, alert: alert, milestone: MilestoneTracker())
         TestRun.expectEqual(MenuBarController.meteredTotal(of: monitor), UInt64(180), "totals kept")
         TestRun.expectEqual(alert.baselineBytes, UInt64(0), "baseline includes existing total")
@@ -57,7 +57,7 @@ enum TrafficMonitorAppTests {
                                                           rx: MenuBarController.gigabyte, tx: 0)])
         let alert = TrafficAlert()
         let threshold = 3 * MenuBarController.gigabyte
-                MenuBarController.applyAlertThreshold(threshold, syncReset: false,
+        MenuBarController.applyAlertThreshold(threshold, syncReset: false,
                                               monitor: monitor, alert: alert, milestone: MilestoneTracker())
         let status = HomePageController.alertStrip(threshold: alert.threshold, fired: alert.fired,
                                                    progressBytes: alert.progress(totalBytes:
@@ -75,7 +75,7 @@ enum TrafficMonitorAppTests {
         let alert = TrafficAlert()
         var resetCalls = 0
         monitor.onReset = { resetCalls += 1 }
-                MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
+        MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
                                               monitor: monitor, alert: alert, milestone: MilestoneTracker())
         TestRun.expectEqual(MenuBarController.meteredTotal(of: monitor), UInt64(0), "store zeroed")
         TestRun.expectEqual(alert.baselineBytes, UInt64(0), "baseline zero")
@@ -89,7 +89,7 @@ enum TrafficMonitorAppTests {
         // 且既有阈值必须被清除（从有阈值起步，避免「本为 nil」的自证断言）
         let monitor = makeMonitor()
         let alert = TrafficAlert(threshold: 1_000)
-                MenuBarController.applyAlertThreshold(nil, syncReset: true,
+        MenuBarController.applyAlertThreshold(nil, syncReset: true,
                                               monitor: monitor, alert: alert, milestone: MilestoneTracker())
         TestRun.expectEqual(MenuBarController.meteredTotal(of: monitor), UInt64(180), "totals survive disable")
         TestRun.expect(alert.threshold == nil, "threshold cleared")
@@ -103,7 +103,7 @@ enum TrafficMonitorAppTests {
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
         sampler.samples = [TrafficMonitorTests.sample("en0", .wifi, rx: 90, tx: 0)] // 弹窗期 +90
         let alert = TrafficAlert()
-                MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
+        MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
                                               monitor: monitor, alert: alert, milestone: MilestoneTracker())
         sampler.samples = [TrafficMonitorTests.sample("en0", .wifi, rx: 108, tx: 0)] // 新周期 +18
         monitor.tick()

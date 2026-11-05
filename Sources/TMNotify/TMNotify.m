@@ -11,6 +11,12 @@ static void (*g_tm_activation_handler)(const char *, int) = NULL;
 @end
 
 @implementation TMNotifyDelegate
+// 应用前台时也显示横幅并播放声音（复刻 UN 时代 willPresent [.banner, .sound] 语义；
+// 老接口默认前台静默投递到通知中心，2026-11-05 终审发现）
+- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center
+        shouldPresentNotification:(NSUserNotification *)notification {
+    return YES;
+}
 // 点击/操作通知时回调（AppKit 保证主线程）
 - (void)userNotificationCenter:(NSUserNotificationCenter *)center
         didActivateNotification:(NSUserNotification *)notification {
