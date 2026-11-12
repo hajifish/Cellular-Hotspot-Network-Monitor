@@ -26,6 +26,4 @@ done
 rm -f "$TMP"
 
 iconutil -c icns "$OUT" -o "$ICNS"
-# 通知横幅附件用方形 logo（UNNotificationAttachment 附件位），直接复用 iconset 现成 256 尺寸
-cp "$OUT/icon_256x256.png" ".build/notification-icon.png"
 echo "Generated $ICNS"
