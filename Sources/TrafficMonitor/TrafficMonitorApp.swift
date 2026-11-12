@@ -497,8 +497,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return tracker.update(progressBytes: progressBytes)
     }
 
-    /// 阈值临近预告：按阈值三档检查点逐级提醒，口径为告警进度（总量 − 基线）——
-    /// 预告是向额度倒计时，中途设阈值（不重置）时才与告警进度一致；
+    /// 阈值临近预告：按阈值三档检查点逐级提醒，口径恒为告警进度（总量 − 基线），
+    /// 预告始终向额度倒计时；基线在设置/恢复阈值时为 0（进度 = 累计总量），
+    /// 模块重置后挪至新总量（进度归零、预告从头开始）——与原始总量分叉的场景是后者；
     /// 仅在设置了流量告警时启用（2026-11-05 需求），关闭告警即整体静默
     private func checkMilestone() {
         let progress = alert.progress(totalBytes: currentMeteredTotal())
