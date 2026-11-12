@@ -4,6 +4,7 @@ import Foundation
 enum UpdateInstallerTests {
     static func all() {
         scriptQuotesAllOperands()
+        downloadStatusRejectsErrorPages()
         findVerifiedAppAcceptsMatchingVersion()
         findVerifiedAppRejectsMismatch()
         findVerifiedAppRejectsMissingApp()
@@ -34,6 +35,24 @@ enum UpdateInstallerTests {
         TestRun.expect(script.contains(#"mv "$OLD_APP.old-$STAMP" "$OLD_APP""#), "rollback uses exact stamp (glob 会把多个备份 mv 进目录)")
         TestRun.expect(script.contains(#"open "$OLD_APP""#), "relaunch quoted")
         TestRun.expect(script.contains(#"kill -0 "$WAIT_PID""#), "waits for old process exit")
+    }
+
+    /// 下载完成回调不校验 HTTP 状态时，404 错误页会被当 zip 存盘（2026-11-12 实测：
+    /// 空资产 release 的下载 URL 404，update.zip 内容为 "Not Found"）。状态判定是纯函数：
+    /// 2xx 放行；404 = 安装包未就绪；其余非 2xx = 接口错误；非 HTTP 响应 = badResponse
+    static func downloadStatusRejectsErrorPages() {
+        func http(_ code: Int) -> HTTPURLResponse {
+            HTTPURLResponse(url: URL(string: "https://example.com/x.zip")!, statusCode: code,
+                            httpVersion: nil, headerFields: nil)!
+        }
+        TestRun.expect(UpdateInstaller.downloadStatusError(http(200)) == nil, "2xx accepted")
+        TestRun.expect(UpdateInstaller.downloadStatusError(http(206)) == nil, "partial content accepted")
+        TestRun.expectEqual(UpdateInstaller.downloadStatusError(http(404)) as? UpdateError,
+                            .assetMissing, "404 = package not there")
+        TestRun.expectEqual(UpdateInstaller.downloadStatusError(http(503)) as? UpdateError,
+                            .apiError(503), "other non-2xx = api error")
+        TestRun.expectEqual(UpdateInstaller.downloadStatusError(nil) as? UpdateError,
+                            .badResponse, "non-HTTP response refused")
     }
 
     static func findVerifiedAppAcceptsMatchingVersion() {

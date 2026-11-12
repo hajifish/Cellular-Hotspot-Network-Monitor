@@ -43,6 +43,15 @@ final class UpdateInstaller: NSObject, UpdateDownloading, URLSessionDownloadDele
 
     // MARK: URLSessionDownloadDelegate（会话代理队列线程 → 主线程）
 
+    /// 下载落盘前的状态闸门（纯函数，可测）：URLSession 对 4xx/5xx 不报传输错误，
+    /// 错误页会照常走 didFinishDownloadingTo（2026-11-12 实测空资产 release 的下载
+    /// URL 404，落盘内容为 "Not Found" 文本）。404 语义即「安装包未就绪」
+    static func downloadStatusError(_ response: URLResponse?) -> Error? {
+        guard let http = response as? HTTPURLResponse else { return UpdateError.badResponse }
+        if (200..<300).contains(http.statusCode) { return nil }
+        return http.statusCode == 404 ? UpdateError.assetMissing : UpdateError.apiError(http.statusCode)
+    }
+
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
                     totalBytesExpectedToWrite: Int64) {
@@ -53,6 +62,10 @@ final class UpdateInstaller: NSObject, UpdateDownloading, URLSessionDownloadDele
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {
+        if let statusError = Self.downloadStatusError(downloadTask.response) {
+            DispatchQueue.main.async { self.completion?(.failure(statusError)); self.completion = nil }
+            return
+        }
         let zipURL = workDirectory.appendingPathComponent("update.zip")
         try? FileManager.default.removeItem(at: zipURL)
         do {

@@ -60,8 +60,11 @@ enum UpdatePresentation {
         case .available(let release):
             let excerpt = AppVersion.notesExcerpt(release.body)
             let checkedAt = lastCheck.map { "上次检查 \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
+            // 下载尝试失败（资产未就绪/404/网络中断/开发构建）留在 available 可重试，
+            // 原因顶替备注行——否则点击「下载并更新」后卡片零变化，形似按钮失灵（2026-11-12 修复）
+            let notes = errorText ?? (excerpt.isEmpty ? checkedAt : excerpt)
             return CardContent(status: "发现新版本 \(release.tagName)", kind: .attention,
-                               notes: excerpt.isEmpty ? checkedAt : excerpt,
+                               notes: notes,
                                primary: "下载并更新", secondary: "打开发布页")
         case .failed:
             return CardContent(status: "当前版本 \(currentVersion)", kind: .error,
