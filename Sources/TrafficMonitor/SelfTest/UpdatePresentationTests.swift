@@ -5,6 +5,7 @@ enum UpdatePresentationTests {
     static func all() {
         wantsCardOnlyForActiveStates()
         cardAvailableShowsUpdateActions()
+        cardAvailableShowsDownloadFailureReason()
         cardAvailableDegradedFallsBackToLastCheck()
         cardProgressAndRestartStates()
         cardFailedOffersRetry()
@@ -37,6 +38,19 @@ enum UpdatePresentationTests {
         TestRun.expect(available.kind == .attention, "attention kind")
         TestRun.expectEqual(available.primary, "下载并更新", "primary action")
         TestRun.expectEqual(available.secondary, "打开发布页", "secondary action")
+    }
+
+    /// available 态下留存的下载尝试失败原因（资产未就绪/404/网络中断/开发构建）：
+    /// 状态留在 available 可重试，原因必须顶替备注行——否则点击「下载并更新」后
+    /// 卡片零变化，形似按钮失灵（2026-11-12 修复）
+    static func cardAvailableShowsDownloadFailureReason() {
+        let available = UpdatePresentation.cardContent(for: .available(release("v0.3.0")), currentVersion: "0.2.0",
+                                                       lastCheck: nil,
+                                                       errorText: "新版本的安装包尚未就绪，请稍后再试或前往发布页")
+        TestRun.expect(available.notes.contains("尚未就绪"), "download failure reason visible")
+        TestRun.expect(!available.notes.contains("修复若干问题"), "reason wins over release notes excerpt")
+        TestRun.expectEqual(available.primary, "下载并更新", "retry download still offered")
+        TestRun.expectEqual(available.secondary, "打开发布页", "release page still offered")
     }
 
     /// 降级通道构造的 ReleaseInfo（body = nil，发布说明不可得）：

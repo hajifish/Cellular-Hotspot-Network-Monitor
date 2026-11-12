@@ -72,6 +72,7 @@ enum UpdateServiceTests {
         downloadFailureReturnsToAvailable()
         downloadCancelIsQuiet()
         devBuildRefusesDownload()
+        assetMissingRefusesDownload()
         stageMismatchReturnsToAvailable()
         confirmYesInstallsAndExits()
         confirmNoKeepsStaged()
@@ -226,6 +227,22 @@ enum UpdateServiceTests {
         guard case .available = service.state else {
             return TestRun.expect(false, "stays available, got \(service.state)")
         }
+    }
+
+    /// release 无 zip 资产（发布后打包工作流未完成的窗口期）：不发下载请求，
+    /// 留在 available 且原因可查——展示层据此把「安装包尚未就绪」顶到备注行
+    static func assetMissingRefusesDownload() {
+        let bare = ReleaseInfo(tagName: "0.1.0", htmlUrl: "https://example.com/r/0.1.0",
+                               body: nil, assets: [])
+        let (service, _, installer, _) = makeService(release: .success(bare))
+        service.checkNow()
+        service.startDownload()
+        TestRun.expectEqual(installer.downloadCount, 0, "no download without zip asset")
+        guard case .available = service.state else {
+            return TestRun.expect(false, "stays available, got \(service.state)")
+        }
+        TestRun.expectEqual(service.lastError, "新版本的安装包尚未就绪，请稍后再试或前往发布页",
+                            "asset-missing reason stored")
     }
 
     static func stageMismatchReturnsToAvailable() {
