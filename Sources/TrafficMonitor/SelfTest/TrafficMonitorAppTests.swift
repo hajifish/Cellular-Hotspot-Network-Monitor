@@ -13,10 +13,10 @@ enum TrafficMonitorAppTests {
         alertResetRequiresExplicitConfirmation()
         milestoneReachedSilentAndFrozenWithoutThreshold()
         milestoneReachedReportsCrossingsWhenArmed()
-        applyAlertThresholdResyncsMilestoneOnArm()
-        applyAlertThresholdSyncResetRestartsMilestoneFromOneGB()
+        applyAlertThresholdArmsMilestoneAtProgress()
+        applyAlertThresholdSyncResetRestartsMilestoneFromFirstCheckpoint()
         applyAlertThresholdLeavesMilestoneWhenDisabling()
-        milestoneDoesNotBackfillGbConsumedWhileDisabled()
+        milestoneDoesNotBackfillCheckpointsConsumedWhileDisabled()
     }
 
     static func alertResetRequiresExplicitConfirmation() {
@@ -111,89 +111,99 @@ enum TrafficMonitorAppTests {
                             "dialog-period traffic settled before reset")
     }
 
-    /// 告警未设置：越过边界也不提示，且 tracker 冻结（next 不推进）
+    /// 告警未设置：越过检查点也不提示；重新武装后不补发关闭期间越过的检查点
     static func milestoneReachedSilentAndFrozenWithoutThreshold() {
         var tracker = MilestoneTracker()
-        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 2_500_000_000,
+        tracker.arm(thresholdBytes: 5 * MenuBarController.gigabyte, progressBytes: 0)
+        TestRun.expect(MenuBarController.milestoneReached(progressBytes: 4_600_000_000,
                                                           alertThreshold: nil,
                                                           tracker: &tracker) == nil,
-                       "no threshold → milestone silent")
-        TestRun.expectEqual(tracker.next, MilestoneTracker.step, "tracker frozen while alert off")
+                       "no threshold → preview silent")
+        // 重新设置告警（对齐当前进度）：关闭期间越过的 80%/90% 检查点不补发
+        tracker.arm(thresholdBytes: 5 * MenuBarController.gigabyte, progressBytes: 4_600_000_000)
+        TestRun.expect(MenuBarController.milestoneReached(progressBytes: 4_600_000_000,
+                                                          alertThreshold: MenuBarController.gigabyte,
+                                                          tracker: &tracker) == nil,
+                       "checkpoints crossed while disabled not backfilled")
+        TestRun.expectEqual(tracker.next, UInt64(4_750_000_000), "next preview is the 95% checkpoint")
     }
 
-    /// 告警已设置：照常按 1 GB 边界报告
+    /// 告警已设置：按告警进度越过检查点时报告（10GB 阈值 80% = 8G）
     static func milestoneReachedReportsCrossingsWhenArmed() {
         var tracker = MilestoneTracker()
-        tracker.resync(totalBytes: 2_500_000_000) // 对齐到 3 GB 边界
-        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 3_000_000_000,
-                                                          alertThreshold: 10 * MenuBarController.gigabyte,
-                                                          tracker: &tracker) == 3 * MenuBarController.gigabyte,
-                       "armed → 3GB boundary reported")
-        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 3_400_000_000,
+        tracker.arm(thresholdBytes: 10 * MenuBarController.gigabyte, progressBytes: 0)
+        TestRun.expectEqual(MenuBarController.milestoneReached(progressBytes: 8 * MenuBarController.gigabyte,
+                                                               alertThreshold: 10 * MenuBarController.gigabyte,
+                                                               tracker: &tracker),
+                            8 * MenuBarController.gigabyte,
+                            "armed → 80% checkpoint reported")
+        TestRun.expect(MenuBarController.milestoneReached(progressBytes: 8_400_000_000,
                                                           alertThreshold: 10 * MenuBarController.gigabyte,
                                                           tracker: &tracker) == nil,
-                       "between boundaries silent")
+                       "between checkpoints silent")
     }
 
-    /// 设置阈值（不重置）：返回的里程碑对齐到当前总量之上的第一个整 GB
-    static func applyAlertThresholdResyncsMilestoneOnArm() {
+    /// 设置阈值（不重置）：返回的预告按当前告警进度武装——首个未过检查点起预告
+    static func applyAlertThresholdArmsMilestoneAtProgress() {
         let monitor = makeMonitor() // 基线总量 180 字节
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 2_600_000_000, tx: 0)])
         var milestone = MilestoneTracker()
-        _ = milestone.update(totalBytes: 1_200_000_000) // 旧状态停在 next = 2 GB
+        _ = milestone.update(progressBytes: 1_200_000_000) // 旧周期残留状态，arm 必须整体重算
         let alert = TrafficAlert()
-        guard let aligned = MenuBarController.applyAlertThreshold(5 * MenuBarController.gigabyte, syncReset: false,
-                                                                  monitor: monitor, alert: alert,
-                                                                  milestone: milestone) else {
-            TestRun.expect(false, "arm returns aligned tracker")
+        guard let armed = MenuBarController.applyAlertThreshold(5 * MenuBarController.gigabyte, syncReset: false,
+                                                                monitor: monitor, alert: alert,
+                                                                milestone: milestone) else {
+            TestRun.expect(false, "arm returns armed tracker")
             return
         }
-        TestRun.expectEqual(aligned.next, 3 * MilestoneTracker.step,
-                            "armed resyncs to first full GB above total")
+        TestRun.expectEqual(armed.next, 4 * MenuBarController.gigabyte,
+                            "2.6GB progress with 5GB threshold → first upcoming checkpoint 4G (80%)")
     }
 
-    /// 设置阈值 + 同步重置：返回的里程碑从 1 GB 重新起步
-    /// （monitor 须带 GB 级旧总量：若对齐误用 reset 前旧总量，next = 3 GB，测试即挂）
-    static func applyAlertThresholdSyncResetRestartsMilestoneFromOneGB() {
+    /// 设置阈值 + 同步重置：进度归零，1GB 阈值从首个检查点 500M 起步
+    /// （monitor 须带 GB 级旧总量：若 arm 误用 reset 前的旧进度，全部检查点被跳过，测试即挂）
+    static func applyAlertThresholdSyncResetRestartsMilestoneFromFirstCheckpoint() {
         let monitor = makeTestTrafficMonitor(sampler: FakeSampler(samples: []))
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 0, tx: 0)])
         monitor.update(from: [TrafficMonitorTests.sample("en0", .wifi, rx: 2_600_000_000, tx: 0)]) // 旧周期 2.6 GB
         var milestone = MilestoneTracker()
-        milestone.resync(totalBytes: 2_600_000_000) // 旧周期已对齐：next = 3 GB
+        milestone.arm(thresholdBytes: 3 * MenuBarController.gigabyte, progressBytes: 0) // 旧周期状态：next = 1.5G
         let alert = TrafficAlert()
-        guard let aligned = MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
-                                                                  monitor: monitor, alert: alert,
-                                                                  milestone: milestone) else {
-            TestRun.expect(false, "sync reset returns aligned tracker")
+        guard let armed = MenuBarController.applyAlertThreshold(MenuBarController.gigabyte, syncReset: true,
+                                                                monitor: monitor, alert: alert,
+                                                                milestone: milestone) else {
+            TestRun.expect(false, "sync reset returns armed tracker")
             return
         }
-        TestRun.expectEqual(aligned.next, MilestoneTracker.step, "sync reset → 1GB restart from zeroed total")
+        TestRun.expectEqual(armed.next, UInt64(500_000_000), "sync reset → first checkpoint 500M from zeroed progress")
     }
 
-    /// 关闭期间消耗的 GB 不补发：重新武装后越过旧边界静默，自新边界起恢复
-    static func milestoneDoesNotBackfillGbConsumedWhileDisabled() {
+    /// 关闭期间消耗的进度不补发检查点：重新武装后旧检查点静默，自下一个未过检查点起恢复
+    static func milestoneDoesNotBackfillCheckpointsConsumedWhileDisabled() {
         var tracker = MilestoneTracker()
-        _ = tracker.update(totalBytes: 1_200_000_000) // next = 2 GB
-        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 5_400_000_000,
+        tracker.arm(thresholdBytes: 3 * MenuBarController.gigabyte, progressBytes: 0)
+        _ = tracker.update(progressBytes: 1_600_000_000) // 80% 检查点（1.5G）已报
+        TestRun.expect(MenuBarController.milestoneReached(progressBytes: 2_500_000_000,
                                                           alertThreshold: nil,
                                                           tracker: &tracker) == nil,
-                       "silent while disabled")
-        tracker.resync(totalBytes: 5_400_000_000) // 模拟重新设置告警时的对齐 → next = 6 GB
-        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 5_400_000_000,
-                                                          alertThreshold: MenuBarController.gigabyte,
+                       "silent while disabled (2.4G crossing swallowed)")
+        tracker.arm(thresholdBytes: 3 * MenuBarController.gigabyte, progressBytes: 2_500_000_000)
+        TestRun.expect(MenuBarController.milestoneReached(progressBytes: 2_500_000_000,
+                                                          alertThreshold: 3 * MenuBarController.gigabyte,
                                                           tracker: &tracker) == nil,
-                       "GB consumed while disabled not backfilled")
-        TestRun.expect(MenuBarController.milestoneReached(totalBytes: 6_000_000_000,
-                                                          alertThreshold: MenuBarController.gigabyte,
-                                                          tracker: &tracker) == 6 * MenuBarController.gigabyte,
-                       "reporting resumes at next full GB")
+                       "checkpoint crossed while disabled not backfilled")
+        TestRun.expectEqual(MenuBarController.milestoneReached(progressBytes: 2_850_000_000,
+                                                               alertThreshold: 3 * MenuBarController.gigabyte,
+                                                               tracker: &tracker),
+                            UInt64(2_850_000_000),
+                            "reporting resumes at next unpassed checkpoint")
     }
 
     /// 切「关闭」：返回 nil——实例侧里程碑保持不动（observer 期间的推进不回卷）
     static func applyAlertThresholdLeavesMilestoneWhenDisabling() {
         let monitor = makeMonitor()
         var milestone = MilestoneTracker()
-        milestone.resync(totalBytes: 5_500_000_000) // next = 6 GB
+        milestone.arm(thresholdBytes: 5 * MenuBarController.gigabyte, progressBytes: 0) // next = 4G
         let alert = TrafficAlert()
         alert.setThreshold(MenuBarController.gigabyte, baselineBytes: 0)
         let aligned = MenuBarController.applyAlertThreshold(nil, syncReset: false,

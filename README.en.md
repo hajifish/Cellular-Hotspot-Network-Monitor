@@ -55,7 +55,10 @@
   dialog if notifications are not authorized) and the ring turns red.
   When changing the threshold, you can keep and count existing usage or reset
   all totals and start a new metering period. Fires once per threshold and
-  re-arms on reset or change
+  re-arms on reset or change. Ahead of the cap, tiered progress notices adapt
+  to the threshold: at ≥5 GB one notice each at 20% / 10% / 5% / 1% remaining,
+  at 1–5 GB at 50% / 80% / 95% used, below 1 GB at 50% / 90% used; once the
+  cap is crossed, remaining notices are dropped
 - **Home window (⌘0)** — interface cards on the left (name, live rates,
   totals, reset) and a **total-usage ring gauge** on the right (sum of all
   modules' upload + download; ring =

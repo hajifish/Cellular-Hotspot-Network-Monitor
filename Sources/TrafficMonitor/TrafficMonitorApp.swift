@@ -195,12 +195,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self?.checkAlert()
             self?.checkMilestone()
         }
-        // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装），里程碑对齐
+        // 任一模块重置后，告警基线挪到新的总量（进度清零并重新武装），预告从头开始
         monitor.onReset = { [weak self] in
             guard let self else { return }
             let total = self.currentMeteredTotal()
             self.alert.reset(baselineBytes: total)
-            self.milestoneTracker.resync(totalBytes: total)
+            if let threshold = self.alert.threshold {
+                self.milestoneTracker.arm(thresholdBytes: threshold, progressBytes: 0)
+            }
         }
         homeController.alertStateProvider = { [weak self] in
             guard let self else { return (threshold: nil, fired: false, progressBytes: 0) }
@@ -339,9 +341,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             threshold = stored.map { UInt64(max(0, $0)) }
         }
         alert.setThreshold(threshold, baselineBytes: 0)
-        // 启动恢复即视为「已设置」：里程碑对齐当前累计，不按持久化旧量补发（2026-11-05）
-        if threshold != nil {
-            milestoneTracker.resync(totalBytes: currentMeteredTotal())
+        // 启动恢复即视为「已设置」：预告按当前告警进度武装，不按旧量补发（2026-11-05）
+        if let threshold {
+            milestoneTracker.arm(thresholdBytes: threshold,
+                                 progressBytes: alert.progress(totalBytes: currentMeteredTotal()))
         }
     }
 
@@ -359,7 +362,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 实际阈值 + 同步重置 → 先补一拍结算（模态弹窗期间采样停摆），再清零全部累计、以 0 为告警基线；
     /// 仅设置告警 → 保留累计并将全部当前累计计入新告警进度；
     /// bytes 为 nil（切「关闭」）时无论 syncReset 为何都不得动累计（守卫）。
-    /// 设置实际阈值时返回对齐后的里程碑（当前总量之上的第一个整 GB——关闭期间冻结的不补发，2026-11-05 需求）；
+    /// 设置实际阈值时返回按当前告警进度武装后的预告（首个未过检查点起预告——
+    /// 关闭期间越过的检查点不补发，2026-11-05 需求）；
     /// 关闭时返回 nil = 调用方实例侧里程碑保持不动（observer 期间的推进不回卷）。
     /// ⚠️ milestone 必须按值传入、以返回值带回，不能用 inout：tick/reset 会同步触发
     /// observer 重入 checkMilestone 的 &milestoneTracker，inout 的独占访问横跨重入
@@ -373,13 +377,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             // 先补一拍把这段时间的流量结算进旧周期，再重置/读基线
             monitor.tick()
         }
-        if let bytes, syncReset {
+        if bytes != nil, syncReset {
             monitor.reset(nil)
         }
         alert.setThreshold(bytes, baselineBytes: syncReset ? meteredTotal(of: monitor) : 0)
-        guard bytes != nil else { return nil }
+        guard let bytes else { return nil }
         var milestone = milestone
-        milestone.resync(totalBytes: meteredTotal(of: monitor))
+        milestone.arm(thresholdBytes: bytes,
+                      progressBytes: alert.progress(totalBytes: meteredTotal(of: monitor)))
         return milestone
     }
 
@@ -485,24 +490,27 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     /// 里程碑门控（静态编排）：告警未设置 → 整体静默且 tracker 冻结不推进；
-    /// 已设置 → 透传 tracker.update（返回本次越过的边界，无则 nil）
-    static func milestoneReached(totalBytes: UInt64, alertThreshold: UInt64?,
+    /// 已设置 → 透传 tracker.update（返回本次越过的检查点，无则 nil）
+    static func milestoneReached(progressBytes: UInt64, alertThreshold: UInt64?,
                                  tracker: inout MilestoneTracker) -> UInt64? {
         guard alertThreshold != nil else { return nil }
-        return tracker.update(totalBytes: totalBytes)
+        return tracker.update(progressBytes: progressBytes)
     }
 
-    /// 每 1 GB 里程碑：自上次重置起累计每满 1 GB 提醒一条；
+    /// 阈值临近预告：按阈值三档检查点逐级提醒，口径恒为告警进度（总量 − 基线），
+    /// 预告始终向额度倒计时；基线在设置/恢复阈值时为 0（进度 = 累计总量），
+    /// 模块重置后挪至新总量（进度归零、预告从头开始）——与原始总量分叉的场景是后者；
     /// 仅在设置了流量告警时启用（2026-11-05 需求），关闭告警即整体静默
     private func checkMilestone() {
-        let totalBytes = currentMeteredTotal()
-        guard let reached = Self.milestoneReached(totalBytes: totalBytes,
+        let progress = alert.progress(totalBytes: currentMeteredTotal())
+        guard let reached = Self.milestoneReached(progressBytes: progress,
                                                   alertThreshold: alert.threshold,
-                                                  tracker: &milestoneTracker) else { return }
-        let gb = reached / MenuBarController.gigabyte
-        logger.info("milestone reached: \(gb, privacy: .public) GB, total=\(ByteFormat.string(totalBytes), privacy: .public)")
-        SystemNotifier.post(title: "Traffic Monitor 流量里程碑",
-                            body: "累计已用 \(ByteFormat.string(totalBytes))。",
+                                                  tracker: &milestoneTracker),
+              let threshold = alert.threshold else { return }
+        let remainingPercent = Int(((1 - Double(reached) / Double(threshold)) * 100).rounded())
+        logger.info("milestone preview: \(ByteFormat.string(reached), privacy: .public) / \(ByteFormat.string(threshold), privacy: .public), remaining=\(remainingPercent, privacy: .public)%")
+        SystemNotifier.post(title: "Traffic Monitor 流量预告",
+                            body: "已用 \(ByteFormat.string(reached)) / \(ByteFormat.string(threshold))，剩余约 \(remainingPercent)%。",
                             identifier: UUID().uuidString)
     }
 
