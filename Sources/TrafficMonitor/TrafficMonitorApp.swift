@@ -218,9 +218,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self?.showRestartConfirm(release: release, completion: completion)
         }
         // 通知点击路由 + 授权请求（UN delegate 接线与授权已收编在 SystemNotifier，勿另处重复请求）：
-        // 更新类通知（"update-" 前缀）点击后打开主页（沿用 0.9.x 行为）
+        // 全部通知点击默认打开主页（2026-11-13 修复：流量告警/预告此前无路由，点击后应用被
+        // 激活却无窗口可显示，落在「空白的地方」）；例外清单见 activationOpensHome
         SystemNotifier.configureActivation { [weak self] identifier in
-            guard identifier.hasPrefix("update-") else { return }
+            guard SystemNotifier.activationOpensHome(identifier: identifier) else { return }
             self?.openHome()
         }
         updateService.startAutomaticChecks()

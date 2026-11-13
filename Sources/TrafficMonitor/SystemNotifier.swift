@@ -34,6 +34,14 @@ enum SystemNotifier {
         deliver(title, body, identifier, sound, onFailure)
     }
 
+    /// 点击通知是否打开主页（纯函数，可测）。默认所有应用通知点击都聚焦应用窗口：
+    /// LSUIElement 应用被系统激活却无窗口可显示，用户会被晾在一个「空白的地方」
+    /// （2026-11-13 修复：流量告警/预告的通知此前完全没有路由）。唯一例外
+    /// "uptodate-check"——「已是最新」无详情可看，点击不弹窗（2026-11-01 决策）
+    static func activationOpensHome(identifier: String) -> Bool {
+        identifier != "uptodate-check"
+    }
+
     /// 点击路由表
     private static var activationRouter: ((String) -> Void)?
 
