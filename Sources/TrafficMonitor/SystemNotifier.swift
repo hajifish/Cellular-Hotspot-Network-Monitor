@@ -10,12 +10,6 @@ import UserNotifications
 enum SystemNotifier {
     private static let logger = Logger(subsystem: "local.shin.TrafficMonitor", category: "notify")
 
-    /// 通知附件 logo 路径（make-app.sh 铺入 Contents/Resources/notification-icon.png）。
-    /// 裸二进制（自测）无 bundle 资源返回 nil——可观察契约，默认 deliver 据此整体降级
-    static func notificationIconURL() -> URL? {
-        Bundle.main.url(forResource: "notification-icon", withExtension: "png")
-    }
-
     /// 测试注入点：默认实现走 UN center（自测裸二进制无 bundle，UN center 访问即抛
     /// 异常——注入 no-op 既防真通知也防异常）
     static var deliver: (String, String, String, Bool, ((Error) -> Void)?) -> Void = {
@@ -24,16 +18,6 @@ enum SystemNotifier {
         content.title = title
         content.body = body
         content.sound = sound ? .default : nil
-        // 附件是装饰不是必达件：图标缺失或构造失败只降级记日志，绝不因此丢通知
-        if let iconURL = notificationIconURL() {
-            do {
-                content.attachments = [try UNNotificationAttachment(identifier: "logo", url: iconURL, options: nil)]
-            } catch {
-                logger.error("notification icon attachment failed: \(String(describing: error), privacy: .public)")
-            }
-        } else {
-            logger.info("notification icon not in bundle, sending without attachment")
-        }
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { error in
             guard let error else { return }

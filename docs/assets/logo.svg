@@ -1,58 +1,63 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <!--
-    Traffic Monitor LOGO
+    Traffic Monitor LOGO（macOS 26 / Liquid Glass 世代）
     构图：SF Symbol arrow.up.arrow.down 同款 ⇅ 交错；绿=上行 / 蓝=下行
-    质感：macOS 半透明玻璃（箭头 85% 不透明度 + 顶面高光 + 边缘光）
+    模板：1024 画布 / 824 主体 / 圆角 185.4（Apple 官方 macOS 图标模板实测值，
+          与 Mail 等系统应用资产一致；Tahoe 系统遮罩按此对齐）
+    质感：青蓝玻璃——高饱和渐变底 + 中心辉光 + 顶面高光 + 底缘透光；
+          不自画边框圈线（macOS 26 系统在横幅/Dock 会叠加自身的玻璃边缘
+          与高光，自画描边会呈现双重边）；不烘焙 glow 滤镜（系统玻璃 +
+          自带光晕在小尺寸下发浑）；背景避免近黑（HIG：黑底会沉入桌面）
     配色与 docs/assets/banner.svg、应用内 UI 同源
   -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0d1424"/>
-      <stop offset="1" stop-color="#131d33"/>
+      <stop offset="0" stop-color="#0e5a8a"/>
+      <stop offset="0.55" stop-color="#0b3d68"/>
+      <stop offset="1" stop-color="#0a2745"/>
     </linearGradient>
-    <!-- 玻璃箭头：上浅下深纵向渐变（userSpaceOnUse 保证笔画与箭头共享同一渐变域） -->
-    <linearGradient id="up" x1="0" y1="276" x2="0" y2="700" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#a7f3d0"/>
-      <stop offset="1" stop-color="#34d399"/>
+    <radialGradient id="halo" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="up" x1="0" y1="258" x2="0" y2="716" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b9f5d8"/>
+      <stop offset="1" stop-color="#2fd08e"/>
     </linearGradient>
-    <linearGradient id="down" x1="0" y1="324" x2="0" y2="724" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7dd3fc"/>
-      <stop offset="1" stop-color="#38bdf8"/>
+    <linearGradient id="down" x1="0" y1="310" x2="0" y2="742" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8ddcff"/>
+      <stop offset="1" stop-color="#2eb1f2"/>
     </linearGradient>
-    <!-- 顶面玻璃高光：自上而下淡出 -->
     <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.09"/>
-      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.04"/>
       <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <!-- 玻璃边缘光：上缘亮、下缘消失 -->
-    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
-      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.04"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    <!-- 底缘透光：玻璃厚度感，自下而上淡出 -->
+    <linearGradient id="floor" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.12"/>
+      <stop offset="0.35" stop-color="#38bdf8" stop-opacity="0.03"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
     </linearGradient>
-    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="8" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
 
-  <!-- macOS 圆角方形底（1024 画布 / 824 主体） -->
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#sheen)"/>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="none" stroke="#1f2a44" stroke-width="5"/>
-  <rect x="103" y="103" width="818" height="818" rx="182" fill="none" stroke="url(#edge)" stroke-width="4"/>
+  <!-- macOS 圆角方形底（1024 画布 / 824 主体 / rx 185.4） -->
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#halo)"/>
 
-  <!-- 主体：上行 / 下行箭头，垂直错位，半透明玻璃质感 -->
-  <g fill="none" stroke-width="80" stroke-linecap="round" stroke-linejoin="round"
-     opacity="0.85" filter="url(#glow)">
+  <!-- 主体：上行 / 下行箭头，垂直错位，玻璃渐变笔画 -->
+  <g fill="none" stroke-width="84" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
     <g stroke="url(#up)">
-      <path d="M 380 700 L 380 330"/>
-      <path d="M 260 450 L 380 300 L 500 450"/>
+      <path d="M 372 716 L 372 316"/>
+      <path d="M 242 456 L 372 286 L 502 456"/>
     </g>
     <g stroke="url(#down)">
-      <path d="M 644 324 L 644 694"/>
-      <path d="M 524 574 L 644 724 L 764 574"/>
+      <path d="M 652 310 L 652 710"/>
+      <path d="M 522 570 L 652 740 L 782 570"/>
     </g>
   </g>
+
+  <!-- 顶面高光与底缘透光（在主体之上收束玻璃质感） -->
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#sheen)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185.4" fill="url(#floor)"/>
 </svg>

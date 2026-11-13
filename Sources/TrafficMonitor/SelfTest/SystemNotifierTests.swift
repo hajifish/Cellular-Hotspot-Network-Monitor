@@ -4,14 +4,6 @@ enum SystemNotifierTests {
         postForwardsOnFailureThroughSeam()
         activationRouterReceivesIdentifier()
         repeatedConfigureReplacesRouter()
-        notificationIconURLMissingInBareBinary()
-    }
-
-    /// 裸二进制（自测进程）无 bundle 资源——可观察契约：notificationIconURL() 返回 nil，
-    /// 默认 deliver 因此跳过附件构造整体降级（附件失败绝不丢通知）
-    static func notificationIconURLMissingInBareBinary() {
-        TestRun.expect(SystemNotifier.notificationIconURL() == nil,
-                       "裸二进制无 bundle 资源，附件 logo 路径为 nil")
     }
 
     static func postRoutesThroughDeliverSeam() {
