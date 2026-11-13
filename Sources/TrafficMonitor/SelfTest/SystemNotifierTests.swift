@@ -1,9 +1,12 @@
+import Foundation
+
 enum SystemNotifierTests {
     static func all() {
         postRoutesThroughDeliverSeam()
         postForwardsOnFailureThroughSeam()
         activationRouterReceivesIdentifier()
         repeatedConfigureReplacesRouter()
+        activationOpensHomeForAllButUpToDate()
     }
 
     static func postRoutesThroughDeliverSeam() {
@@ -61,5 +64,17 @@ enum SystemNotifierTests {
         SystemNotifier.configureActivation { received.append("new-" + $0) }
         SystemNotifier.handleActivation(identifier: "id-3")
         TestRun.expectEqual(received, ["new-id-3"], "重复 configure 用最新路由替换")
+    }
+
+    /// 点击通知是否打开主页（纯函数）：流量告警/预告的通知是裸 UUID identifier，
+    /// 此前不在路由表内、点击后落在「空白的地方」（2026-11-13 修复）；
+    /// 唯一例外「已是最新」——无详情可看，不弹窗
+    static func activationOpensHomeForAllButUpToDate() {
+        TestRun.expect(SystemNotifier.activationOpensHome(identifier: "update-v9.9.9"),
+                       "更新通知点击打开主页")
+        TestRun.expect(SystemNotifier.activationOpensHome(identifier: UUID().uuidString),
+                       "流量告警/预告（UUID identifier）点击打开主页")
+        TestRun.expect(!SystemNotifier.activationOpensHome(identifier: "uptodate-check"),
+                       "「已是最新」点击不弹窗")
     }
 }
