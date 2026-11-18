@@ -48,7 +48,7 @@ final class HomePageController {
     init(monitor: TrafficMonitor, updateService: UpdateService) {
         self.monitor = monitor
         self.updateService = updateService
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 470),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 446),
                           styleMask: [.titled, .closable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         window.title = "Traffic Monitor"
@@ -82,6 +82,11 @@ final class HomePageController {
         "累计 ↑ \(ByteFormat.string(tx))  ↓ \(ByteFormat.string(rx))"
     }
 
+    /// 汇总条总流量单行文本（纯函数，可测）：↑↓ 合并 = 总上传 + 总下载
+    nonisolated static func summaryTotalLine(tx: UInt64, rx: UInt64) -> String {
+        "↑↓ \(ByteFormat.string(tx + rx))"
+    }
+
     /// 汇总条告警文案与状态（纯函数，可测）：
     /// 未设置 → 白色；已设置 → 橙色倒计时（剩余量 + 已用百分比）；已触发 → 红色
     nonisolated static func alertStrip(threshold: UInt64?, fired: Bool,
@@ -99,14 +104,14 @@ final class HomePageController {
 
     private func buildUI() {
         // 固化背景：内置图片 aspect-fill + 黑色遮罩（2026-11-05 需求，替代原 hudWindow 玻璃）
-        let content = DashboardBackgroundView(frame: NSRect(x: 0, y: 0, width: 720, height: 470),
+        let content = DashboardBackgroundView(frame: NSRect(x: 0, y: 0, width: 720, height: 446),
                                               image: DashboardBackgroundView.loadBundledImage())
         window.contentView = content
 
         // 顶部右侧：状态栏显示开关（累计流量在前、实时速率在后；都关 = 状态栏只显示图标）
         // 选中项铺圆角胶囊底色 + 白色加粗，未选无底色灰字，一眼可辨
         totalsChip = toggleChip()
-        totalsChip.frame = NSRect(x: 530, y: 422, width: 86, height: 26)
+        totalsChip.frame = NSRect(x: 530, y: 386, width: 86, height: 26)
         content.addSubview(totalsChip)
         totalsToggle = sphereToggle(action: #selector(toggleTotals))
         totalsToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
@@ -116,7 +121,7 @@ final class HomePageController {
         totalsLabel.frame = NSRect(x: 28, y: 5, width: 54, height: 16)
         totalsChip.addSubview(totalsLabel)
         ratesChip = toggleChip()
-        ratesChip.frame = NSRect(x: 622, y: 422, width: 86, height: 26)
+        ratesChip.frame = NSRect(x: 622, y: 386, width: 86, height: 26)
         content.addSubview(ratesChip)
         ratesToggle = sphereToggle(action: #selector(toggleRates))
         ratesToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
@@ -128,20 +133,20 @@ final class HomePageController {
         refreshToggles()
         updateBaseViews.append(contentsOf: [totalsChip, ratesChip])
 
-        // 左列汇总条：会话、总上传、总下载（流量告警移至右侧圆环面板）
-        let strip = roundedCard(frame: NSRect(x: 24, y: 368, width: 456, height: 46))
+        // 左列汇总条：会话、总上传、总下载、总流量（顶边 412 与右上「累计流量」开关同行；标题栏留白 34pt）
+        let strip = roundedCard(frame: NSRect(x: 24, y: 366, width: 456, height: 46))
         content.addSubview(strip)
         updateBaseViews.append(strip)
         let summarySpecs: [(String, CGFloat)] = [
-            ("会话", 18), ("总上传", 150), ("总下载", 280),
+            ("会话", 18), ("总上传", 126), ("总下载", 234), ("总流量", 342),
         ]
         for (caption, x) in summarySpecs {
             let captionLabel = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
             captionLabel.stringValue = caption
-            captionLabel.frame = NSRect(x: x, y: 26, width: 120, height: 12)
+            captionLabel.frame = NSRect(x: x, y: 26, width: 105, height: 12)
             strip.contentView?.addSubview(captionLabel)
             let value = makeLabel(size: 12, color: .labelColor, weight: .semibold)
-            value.frame = NSRect(x: x, y: 6, width: 120, height: 18)
+            value.frame = NSRect(x: x, y: 6, width: 105, height: 18)
             value.lineBreakMode = .byClipping
             strip.contentView?.addSubview(value)
             summaryValues.append(value)
@@ -153,21 +158,22 @@ final class HomePageController {
             (.iphone, 259),
         ]
         for (category, x) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 182))
+            // 卡片收高：顶边 358 与汇总条底边 366 留 8pt，左右列上下边缘对齐（顶 412＝开关胶囊 / 底 180）
+            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 178))
             content.addSubview(card)
             updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 14, y: 150, width: 150, height: 18)
+            title.frame = NSRect(x: 14, y: 146, width: 150, height: 18)
             let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-            meta.frame = NSRect(x: 14, y: 134, width: 193, height: 14)
+            meta.frame = NSRect(x: 14, y: 130, width: 193, height: 14)
             if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
                                        accessibilityDescription: "重置计量") {
                 let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
                 reset.isBordered = false
                 reset.contentTintColor = .secondaryLabelColor
                 // 显式定框：默认按钮偏高会顶出卡片上边缘
-                reset.frame = NSRect(x: 181, y: 148, width: 26, height: 22)
+                reset.frame = NSRect(x: 181, y: 144, width: 26, height: 22)
                 reset.toolTip = "重置计量"
                 reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
                 card.contentView?.addSubview(reset)
@@ -185,11 +191,11 @@ final class HomePageController {
             cards[category] = (rate, total, title, meta)
         }
 
-        // 右列：告警进度圆环，环心展示所有模块上行 + 下行总计
-        let ringPanel = roundedCard(frame: NSRect(x: 492, y: 180, width: 204, height: 234))
+        // 右列：告警进度圆环，环心展示所有模块上行 + 下行总计（顶边 378，与卡片同步收高；环体下移让顶部留白均衡）
+        let ringPanel = roundedCard(frame: NSRect(x: 492, y: 180, width: 204, height: 198))
         content.addSubview(ringPanel)
         updateBaseViews.append(ringPanel)
-        ringView.frame = NSRect(x: 37, y: 62, width: 130, height: 130)
+        ringView.frame = NSRect(x: 37, y: 52, width: 130, height: 130)
         ringPanel.contentView?.addSubview(ringView)
         ringStatusLabel = makeLabel(size: 12, color: .white, weight: .semibold)
         ringStatusLabel.frame = NSRect(x: 10, y: 16, width: 184, height: 18)
@@ -571,6 +577,7 @@ final class HomePageController {
         summaryValues[0].stringValue = "\(sessionStart.formatted(date: .omitted, time: .shortened)) · \(Self.durationText(seconds))"
         summaryValues[1].stringValue = "↑ \(ByteFormat.string(totalTX))"
         summaryValues[2].stringValue = "↓ \(ByteFormat.string(totalRX))"
+        summaryValues[3].stringValue = Self.summaryTotalLine(tx: totalTX, rx: totalRX)
 
         // 总累计圆环：环 = 告警进度，环心 = 所有模块累计上行 + 下行
         let alertState = alertStateProvider?()
