@@ -63,7 +63,7 @@ enum HomePageTests {
     static func summaryTotalLineFormat() {
         TestRun.expectEqual(HomePageController.summaryTotalLine(tx: 0, rx: 0), "↑↓ 0 B", "zero total")
         TestRun.expectEqual(
-            HomePageController.summaryTotalLine(tx: 1_200_000_000, rx: 1_400_000_000),
-            "↑↓ 2.6 GB", "combined upload+download")
+            HomePageController.summaryTotalLine(tx: 800_000_000, rx: 800_000_000),
+            "↑↓ 1.6 GB", "combined crosses MB→GB boundary")
     }
 }

@@ -43,5 +43,5 @@ nonisolated static func summaryTotalLine(tx: UInt64, rx: UInt64) -> String {
 ## 测试与验证
 
 1. `SelfTest/HomePageTests.swift` 新增 `summaryTotalLine` 断言（含 0、进位量级两例）。
-2. 内置自测主程序全量跑绿（当前基线 354 项）。
+2. 内置自测主程序全量跑绿（分支点基线 356 项，本功能新增 2 项后为 358）。
 3. `make-app.sh` 打包后运行产物二进制目检：汇总条与开关同一行、四项齐全、卡片加高无空洞、折叠/展开图表与更新卡布局不错位。

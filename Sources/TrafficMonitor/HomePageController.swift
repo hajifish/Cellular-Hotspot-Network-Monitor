@@ -158,7 +158,7 @@ final class HomePageController {
             (.iphone, 259),
         ]
         for (category, x) in cardSpecs {
-            // 卡片加高：顶边 394 与汇总条底边 402 留 8pt，左右列上下边缘对齐（顶 448 / 底 180）
+            // 卡片加高：顶边 394 与汇总条底边 402 留 8pt，左右列上下边缘对齐（顶 448＝开关胶囊 / 底 180）
             let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 214))
             content.addSubview(card)
             updateBaseViews.append(card)
