@@ -82,6 +82,11 @@ final class HomePageController {
         "累计 ↑ \(ByteFormat.string(tx))  ↓ \(ByteFormat.string(rx))"
     }
 
+    /// 汇总条总流量单行文本（纯函数，可测）：↑↓ 合并 = 总上传 + 总下载
+    nonisolated static func summaryTotalLine(tx: UInt64, rx: UInt64) -> String {
+        "↑↓ \(ByteFormat.string(tx + rx))"
+    }
+
     /// 汇总条告警文案与状态（纯函数，可测）：
     /// 未设置 → 白色；已设置 → 橙色倒计时（剩余量 + 已用百分比）；已触发 → 红色
     nonisolated static func alertStrip(threshold: UInt64?, fired: Bool,
@@ -128,20 +133,20 @@ final class HomePageController {
         refreshToggles()
         updateBaseViews.append(contentsOf: [totalsChip, ratesChip])
 
-        // 左列汇总条：会话、总上传、总下载（流量告警移至右侧圆环面板）
-        let strip = roundedCard(frame: NSRect(x: 24, y: 368, width: 456, height: 46))
+        // 左列汇总条：会话、总上传、总下载、总流量（顶边 448 与右上「累计流量」开关同行，2026-11-18 左列重排）
+        let strip = roundedCard(frame: NSRect(x: 24, y: 402, width: 456, height: 46))
         content.addSubview(strip)
         updateBaseViews.append(strip)
         let summarySpecs: [(String, CGFloat)] = [
-            ("会话", 18), ("总上传", 150), ("总下载", 280),
+            ("会话", 18), ("总上传", 126), ("总下载", 234), ("总流量", 342),
         ]
         for (caption, x) in summarySpecs {
             let captionLabel = makeLabel(size: 9, color: .tertiaryLabelColor, weight: .medium)
             captionLabel.stringValue = caption
-            captionLabel.frame = NSRect(x: x, y: 26, width: 120, height: 12)
+            captionLabel.frame = NSRect(x: x, y: 26, width: 105, height: 12)
             strip.contentView?.addSubview(captionLabel)
             let value = makeLabel(size: 12, color: .labelColor, weight: .semibold)
-            value.frame = NSRect(x: x, y: 6, width: 120, height: 18)
+            value.frame = NSRect(x: x, y: 6, width: 105, height: 18)
             value.lineBreakMode = .byClipping
             strip.contentView?.addSubview(value)
             summaryValues.append(value)
@@ -153,21 +158,22 @@ final class HomePageController {
             (.iphone, 259),
         ]
         for (category, x) in cardSpecs {
-            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 182))
+            // 卡片加高：顶边 394 与汇总条底边 402 留 8pt，左右列上下边缘对齐（顶 448＝开关胶囊 / 底 180）
+            let card = roundedCard(frame: NSRect(x: x, y: 180, width: 221, height: 214))
             content.addSubview(card)
             updateBaseViews.append(card)
 
             let title = makeLabel(size: 13, color: .labelColor, weight: .semibold)
-            title.frame = NSRect(x: 14, y: 150, width: 150, height: 18)
+            title.frame = NSRect(x: 14, y: 182, width: 150, height: 18)
             let meta = makeLabel(size: 10, color: .tertiaryLabelColor, weight: .regular)
-            meta.frame = NSRect(x: 14, y: 134, width: 193, height: 14)
+            meta.frame = NSRect(x: 14, y: 166, width: 193, height: 14)
             if let resetIcon = NSImage(systemSymbolName: "arrow.counterclockwise",
                                        accessibilityDescription: "重置计量") {
                 let reset = NSButton(image: resetIcon, target: self, action: #selector(resetCategory(_:)))
                 reset.isBordered = false
                 reset.contentTintColor = .secondaryLabelColor
                 // 显式定框：默认按钮偏高会顶出卡片上边缘
-                reset.frame = NSRect(x: 181, y: 148, width: 26, height: 22)
+                reset.frame = NSRect(x: 181, y: 180, width: 26, height: 22)
                 reset.toolTip = "重置计量"
                 reset.identifier = NSUserInterfaceItemIdentifier(category == .wifi ? "wifi" : "iphone")
                 card.contentView?.addSubview(reset)
@@ -571,6 +577,7 @@ final class HomePageController {
         summaryValues[0].stringValue = "\(sessionStart.formatted(date: .omitted, time: .shortened)) · \(Self.durationText(seconds))"
         summaryValues[1].stringValue = "↑ \(ByteFormat.string(totalTX))"
         summaryValues[2].stringValue = "↓ \(ByteFormat.string(totalRX))"
+        summaryValues[3].stringValue = Self.summaryTotalLine(tx: totalTX, rx: totalRX)
 
         // 总累计圆环：环 = 告警进度，环心 = 所有模块累计上行 + 下行
         let alertState = alertStateProvider?()
