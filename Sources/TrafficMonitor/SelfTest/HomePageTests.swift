@@ -6,6 +6,7 @@ enum HomePageTests {
         alertStripFormatting()
         moduleRunningState()
         totalLineFormat()
+        summaryTotalLineFormat()
     }
 
     static func totalLineFormat() {
@@ -57,5 +58,12 @@ enum HomePageTests {
         TestRun.expectEqual(HomePageController.durationText(45), "45s", "45s")
         TestRun.expectEqual(HomePageController.durationText(90), "1m 30s", "90s")
         TestRun.expectEqual(HomePageController.durationText(3_725), "1h 2m", "3725s")
+    }
+
+    static func summaryTotalLineFormat() {
+        TestRun.expectEqual(HomePageController.summaryTotalLine(tx: 0, rx: 0), "↑↓ 0 B", "zero total")
+        TestRun.expectEqual(
+            HomePageController.summaryTotalLine(tx: 1_200_000_000, rx: 1_400_000_000),
+            "↑↓ 2.6 GB", "combined upload+download")
     }
 }
