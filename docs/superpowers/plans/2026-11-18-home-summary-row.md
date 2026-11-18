@@ -184,8 +184,9 @@ WID=$(APP_PID=$APP_PID swift - <<'EOF'
 import CoreGraphics
 import Foundation
 let target = Int32(ProcessInfo.processInfo.environment["APP_PID"] ?? "0") ?? 0
-let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
-for w in list where (w[kCGWindowWindowOwnerPID] as? Int32) == target {
+// 跨 Space 须用 .optionAll 枚举；键名为 kCGWindowOwnerPID（无 Window 中缀）且需 as String 转换
+let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
+for w in list where (w[kCGWindowOwnerPID] as? Int32) == target {
     if let num = w[kCGWindowNumber] as? Int { print(num) }
 }
 EOF
