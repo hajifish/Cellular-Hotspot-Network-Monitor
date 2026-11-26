@@ -38,18 +38,22 @@ enum StatusBarPrefs {
 }
 
 enum StatusBarFormatter {
-    /// 状态栏富文本；两个开关都关时返回 nil（只显示图标）。
+    /// 状态栏富文本；三个开关都无内容时返回 nil（只显示图标）。
     ///
     /// 布局：累计流量在前、实时速率在后，各自是一组「↑上 / ↓下」两行竖排；
     /// 同开时两组并排（列间两个空格）。8pt 紧行距，保证不超出菜单栏高度。
+    /// 告警剩余百分比是第三列，只追加在第一行行尾：9pt semibold、基线下移
+    /// 3.5pt 使其视觉上跨两行居中，按 remainingColor 分档着色；
+    /// 开关关闭或未设置告警（percent 为 nil）时不占位。
     ///
     /// textColor 需由调用方按菜单栏明暗传入显式色（位图渲染中语义色解析不可靠）。
     ///
     /// ```text
-    /// ↑3.9MB   ↑5.1KB/s
+    /// ↑3.9MB   ↑5.1KB/s  75%
     /// ↓1.2MB   ↓9.2KB/s
     /// ```
-    static func attributed(showRates: Bool, showTotals: Bool, textColor: NSColor,
+    static func attributed(showRates: Bool, showTotals: Bool, showRemaining: Bool,
+                           remainingPercent: Int?, textColor: NSColor,
                            totalRate: CategoryDelta, totalRX: UInt64, totalTX: UInt64) -> NSAttributedString? {
         struct Segment {
             let arrow: String
@@ -74,7 +78,10 @@ enum StatusBarFormatter {
                         value: ByteFormat.rate(totalRate.rx, compact: true)),
             ])
         }
-        guard !columns.isEmpty else { return nil }
+        let remaining: (text: String, color: NSColor)? = showRemaining
+            ? remainingPercent.map { ("\($0)%", remainingColor(percent: $0, textColor: textColor)) }
+            : nil
+        guard !columns.isEmpty || remaining != nil else { return nil }
 
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 0
@@ -82,6 +89,16 @@ enum StatusBarFormatter {
         paragraph.alignment = .left
 
         let result = NSMutableAttributedString()
+
+        // 仅剩剩余列（rates/totals 全关）：单行输出，无分隔
+        if columns.isEmpty, let remaining {
+            result.append(NSAttributedString(string: remaining.text, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
+                .foregroundColor: remaining.color,
+            ]))
+            return result
+        }
+
         let rowCount = columns[0].count
         for row in 0..<rowCount {
             if row > 0 {
@@ -104,6 +121,17 @@ enum StatusBarFormatter {
                 ]))
                 result.append(NSAttributedString(string: segment.value, attributes: [
                     .font: font, .foregroundColor: textColor,
+                ]))
+            }
+            if row == 0, let remaining {
+                result.append(NSAttributedString(string: "  ", attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
+                    .paragraphStyle: paragraph,
+                ]))
+                result.append(NSAttributedString(string: remaining.text, attributes: [
+                    .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
+                    .foregroundColor: remaining.color,
+                    .baselineOffset: -3.5,
                 ]))
             }
         }
