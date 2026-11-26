@@ -42,16 +42,17 @@ enum StatusBarFormatter {
     ///
     /// 布局：累计流量在前、实时速率在后，各自是一组「↑上 / ↓下」两行竖排；
     /// 同开时两组并排（列间两个空格）。8pt 紧行距，保证不超出菜单栏高度。
-    /// 告警剩余百分比是第三列，只追加在第一行行尾：9pt semibold、基线下移
-    /// 3.5pt 使其视觉上跨两行居中，按 remainingColor 分档着色；
-    /// 开关关闭或未设置告警（percent 为 nil）时不占位。
+    /// 告警剩余百分比是第三列，只追加在第一行行尾：gauge 仪表盘符号（9pt，
+    /// 与文字同一分档色）+ 9pt semibold 百分比，基线下移 3.5pt 使其视觉上
+    /// 跨两行居中；开关关闭或未设置告警（percent 为 nil）时不占位。
     ///
     /// textColor 需由调用方按菜单栏明暗传入显式色（位图渲染中语义色解析不可靠）。
     ///
     /// ```text
-    /// ↑3.9MB   ↑5.1KB/s  75%
+    /// ↑3.9MB   ↑5.1KB/s  ⏲ 75%
     /// ↓1.2MB   ↓9.2KB/s
     /// ```
+    /// （⏲ 即 gauge 符号位图 attachment；plain string 中表现为 U+FFFC）
     ///
     /// 实测：三列位图约 103×29pt（两列 80×24pt）；baselineOffset 会被 TextKit
     /// 计入首行 descent、整体行高变大，百分比视觉略高于两行墨迹中心；
@@ -96,10 +97,8 @@ enum StatusBarFormatter {
 
         // 仅剩剩余列（rates/totals 全关）：单行输出，无分隔
         if columns.isEmpty, let remaining {
-            result.append(NSAttributedString(string: remaining.text, attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
-                .foregroundColor: remaining.color,
-            ]))
+            result.append(remainingSegment(text: remaining.text, color: remaining.color,
+                                           baselineOffset: 0))
             return result
         }
 
@@ -132,11 +131,8 @@ enum StatusBarFormatter {
                     .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
                     .paragraphStyle: paragraph,
                 ]))
-                result.append(NSAttributedString(string: remaining.text, attributes: [
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
-                    .foregroundColor: remaining.color,
-                    .baselineOffset: -3.5,
-                ]))
+                result.append(remainingSegment(text: remaining.text, color: remaining.color,
+                                               baselineOffset: -3.5))
             }
         }
         return result
@@ -147,6 +143,27 @@ enum StatusBarFormatter {
         guard let threshold, threshold > 0 else { return nil }
         guard !fired, progressBytes < threshold else { return 0 }
         return Int((Double(threshold - progressBytes) / Double(threshold) * 100).rounded())
+    }
+
+    /// 剩余列富片段：gauge 仪表盘符号 + 百分比，同一分档色；
+    /// 图标经 attachment.bounds.y 与文字 baselineOffset 同步下沉（视觉跨两行居中时不断开）。
+    /// 图标缺失（理论不存在，macOS 14 起 gauge 恒可用）时优雅退化为纯文字。
+    private static func remainingSegment(text: String, color: NSColor,
+                                         baselineOffset: CGFloat) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        if let icon = MenuTextBuilder.tintedSymbol("gauge", color: color, size: 9) {
+            let attachment = NSTextAttachment()
+            attachment.image = icon
+            attachment.bounds = NSRect(x: 0, y: baselineOffset - 1, width: 9, height: 9)
+            result.append(NSAttributedString(attachment: attachment))
+        }
+        var attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
+            .foregroundColor: color,
+        ]
+        if baselineOffset != 0 { attributes[.baselineOffset] = baselineOffset }
+        result.append(NSAttributedString(string: " \(text)", attributes: attributes))
+        return result
     }
 
     /// 剩余分档色：>20% 传入色（白）；≤20% 橙；0% 红（与主页汇总条 armed/fired 语义一致）
