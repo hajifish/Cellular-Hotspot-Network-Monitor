@@ -529,10 +529,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let used = ByteFormat.string(usedBytes)
         let limit = ByteFormat.string(alert.threshold ?? 0)
         logger.info("alert fired: used=\(used, privacy: .public) threshold=\(limit, privacy: .public)")
-        NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
+        // 本地兜底音，无论通知权限如何都会响；Tink 太轻、游戏音频下基本听不见，
+        // 2026-11-26 升级为更厚重的 Basso
+        NSSound(named: "Basso")?.play()
         SystemNotifier.post(title: "Traffic Monitor 流量告警",
                             body: "已用 \(used)，达到 \(limit)。",
                             identifier: UUID().uuidString,
+                            timeSensitive: true,
                             onFailure: { [weak self] _ in
                                 // onFailure 已由 SystemNotifier 派发主线程；Task 只为静态跨 MainActor 隔离
                                 Task { @MainActor in self?.showFallbackAlert(used: used, limit: limit) }

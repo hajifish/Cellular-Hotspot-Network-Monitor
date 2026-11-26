@@ -12,12 +12,14 @@ enum SystemNotifier {
 
     /// 测试注入点：默认实现走 UN center（自测裸二进制无 bundle，UN center 访问即抛
     /// 异常——注入 no-op 既防真通知也防异常）
-    static var deliver: (String, String, String, Bool, ((Error) -> Void)?) -> Void = {
-        title, body, identifier, sound, onFailure in
+    static var deliver: (String, String, String, Bool, Bool, ((Error) -> Void)?) -> Void = {
+        title, body, identifier, sound, timeSensitive, onFailure in
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = sound ? .default : nil
+        // 仅告警显式时间敏感级；false 时不设置该属性，维持系统默认 active、payload 最小
+        if timeSensitive { content.interruptionLevel = .timeSensitive }
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { error in
             guard let error else { return }
@@ -28,10 +30,12 @@ enum SystemNotifier {
     }
 
     /// 投递系统通知；投递失败（UN add 回调 error）在记日志后回调 onFailure
-    /// （主线程派发），供调用方做应用内兜底
+    /// （主线程派发），供调用方做应用内兜底。
+    /// timeSensitive 仅流量告警使用（时间敏感级在专注模式/通知摘要下仍可触达）；
+    /// 其余通知一律缺省 false，维持普通级
     static func post(title: String, body: String, identifier: String, sound: Bool = true,
-                     onFailure: ((Error) -> Void)? = nil) {
-        deliver(title, body, identifier, sound, onFailure)
+                     timeSensitive: Bool = false, onFailure: ((Error) -> Void)? = nil) {
+        deliver(title, body, identifier, sound, timeSensitive, onFailure)
     }
 
     /// 点击通知是否打开主页（纯函数，可测）。默认所有应用通知点击都聚焦应用窗口：
