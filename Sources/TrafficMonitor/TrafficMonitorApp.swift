@@ -247,14 +247,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 状态栏：内容渲染为整张图片交给按钮垂直居中（多行文字不会被贴顶裁切）；
     /// 仅图标模式显示软件 `↑↓` 符号；告警铃铛始终追加在内容之后。
     /// 菜单栏恒为深色底，文字与箭头统一用白色单色风。
+    /// 剩余列数据来自告警阈值与进度，未设置告警时不渲染。
     private func updateStatusBarContent() {
         guard let button = statusItem.button else { return }
         let store = monitor.store
         let textColor = NSColor.white
 
+        let remainingPercent: Int? = StatusBarPrefs.showRemaining
+            ? StatusBarFormatter.remainingPercent(threshold: alert.threshold,
+                                                  fired: alert.fired,
+                                                  progressBytes: alert.progress(totalBytes: currentMeteredTotal()))
+            : nil
+
         var content = NSMutableAttributedString()
         if let attributed = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,
                                                           showTotals: StatusBarPrefs.showTotals,
+                                                          showRemaining: StatusBarPrefs.showRemaining,
+                                                          remainingPercent: remainingPercent,
                                                           textColor: textColor,
                                                           totalRate: monitor.totalRate,
                                                           totalRX: store.wifi.rx + store.iphone.rx,
@@ -404,6 +413,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
         }
         refreshAlertMenuStates()
+        refresh() // 状态栏剩余列即时反映阈值增删（采样 tick 有 ≤1s 延迟）
     }
 
     static func shouldResetAlert(modalResponse: NSApplication.ModalResponse) -> Bool {
