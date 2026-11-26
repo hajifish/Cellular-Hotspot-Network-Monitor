@@ -76,6 +76,7 @@ enum SelfTest {
         TestRun.suite("HomePage") { HomePageTests.all() }
         TestRun.suite("RingGauge") { RingGaugeTests.all() }
         TestRun.suite("TrafficAlert") { TrafficAlertTests.all() }
+        TestRun.suite("AlertBannerPanel") { AlertBannerPanelTests.all() }
         TestRun.suite("MilestoneTracker") { MilestoneTrackerTests.all() }
         TestRun.suite("StatusBarFormatter") { StatusBarFormatterTests.all() }
         TestRun.suite("MenuTextBuilder") { MenuTextBuilderTests.all() }

@@ -29,6 +29,9 @@ final class HomePageController {
     private var ratesLabel: NSTextField!
     private var totalsToggle: NSButton!
     private var totalsLabel: NSTextField!
+    private var remainingChip: NSView!
+    private var remainingToggle: NSButton!
+    private var remainingLabel: NSTextField!
     private var updateStatusLabel: NSTextField!
     private var updateNotesLabel: NSTextField!
     private var updatePrimaryButton: NSButton!
@@ -108,32 +111,42 @@ final class HomePageController {
                                               image: DashboardBackgroundView.loadBundledImage())
         window.contentView = content
 
-        // 顶部右侧：状态栏显示开关（累计流量在前、实时速率在后；都关 = 状态栏只显示图标）
+        // 顶部右侧：状态栏显示开关（累计/实时/剩余三枚；都关 = 状态栏只显示图标）
         // 选中项铺圆角胶囊底色 + 白色加粗，未选无底色灰字，一眼可辨
         totalsChip = toggleChip()
-        totalsChip.frame = NSRect(x: 530, y: 386, width: 86, height: 26)
+        totalsChip.frame = NSRect(x: 516, y: 386, width: 60, height: 26)
         content.addSubview(totalsChip)
         totalsToggle = sphereToggle(action: #selector(toggleTotals))
         totalsToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
         totalsChip.addSubview(totalsToggle)
         totalsLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
-        totalsLabel.stringValue = "累计流量"
-        totalsLabel.frame = NSRect(x: 28, y: 5, width: 54, height: 16)
+        totalsLabel.stringValue = "累计"
+        totalsLabel.frame = NSRect(x: 28, y: 5, width: 26, height: 16)
         totalsChip.addSubview(totalsLabel)
         ratesChip = toggleChip()
-        ratesChip.frame = NSRect(x: 622, y: 386, width: 86, height: 26)
+        ratesChip.frame = NSRect(x: 582, y: 386, width: 60, height: 26)
         content.addSubview(ratesChip)
         ratesToggle = sphereToggle(action: #selector(toggleRates))
         ratesToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
         ratesChip.addSubview(ratesToggle)
         ratesLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
-        ratesLabel.stringValue = "实时速率"
-        ratesLabel.frame = NSRect(x: 28, y: 5, width: 54, height: 16)
+        ratesLabel.stringValue = "实时"
+        ratesLabel.frame = NSRect(x: 28, y: 5, width: 26, height: 16)
         ratesChip.addSubview(ratesLabel)
+        remainingChip = toggleChip()
+        remainingChip.frame = NSRect(x: 648, y: 386, width: 60, height: 26)
+        content.addSubview(remainingChip)
+        remainingToggle = sphereToggle(action: #selector(toggleRemaining))
+        remainingToggle.frame = NSRect(x: 6, y: 4, width: 18, height: 18)
+        remainingChip.addSubview(remainingToggle)
+        remainingLabel = makeLabel(size: 11, color: .labelColor, weight: .medium)
+        remainingLabel.stringValue = "剩余"
+        remainingLabel.frame = NSRect(x: 28, y: 5, width: 26, height: 16)
+        remainingChip.addSubview(remainingLabel)
         refreshToggles()
-        updateBaseViews.append(contentsOf: [totalsChip, ratesChip])
+        updateBaseViews.append(contentsOf: [totalsChip, ratesChip, remainingChip])
 
-        // 左列汇总条：会话、总上传、总下载、总流量（顶边 412 与右上「累计流量」开关同行；标题栏留白 34pt）
+        // 左列汇总条：会话、总上传、总下载、总流量（顶边 412 与右上开关胶囊行同行；标题栏留白 34pt）
         let strip = roundedCard(frame: NSRect(x: 24, y: 366, width: 456, height: 46))
         content.addSubview(strip)
         updateBaseViews.append(strip)
@@ -335,9 +348,15 @@ final class HomePageController {
         refreshToggles()
     }
 
+    @objc private func toggleRemaining() {
+        StatusBarPrefs.showRemaining.toggle()
+        refreshToggles()
+    }
+
     private func refreshToggles() {
         styleSphere(ratesToggle, on: StatusBarPrefs.showRates)
         styleSphere(totalsToggle, on: StatusBarPrefs.showTotals)
+        styleSphere(remainingToggle, on: StatusBarPrefs.showRemaining)
         // 选中 = 胶囊底 + 纯白加粗，未选 = 无底 + 次要灰常规
         totalsChip.layer?.backgroundColor = StatusBarPrefs.showTotals
             ? NSColor.white.withAlphaComponent(0.14).cgColor : NSColor.clear.cgColor
@@ -347,6 +366,10 @@ final class HomePageController {
             ? NSColor.white.withAlphaComponent(0.14).cgColor : NSColor.clear.cgColor
         ratesLabel.font = .systemFont(ofSize: 11, weight: StatusBarPrefs.showRates ? .semibold : .regular)
         ratesLabel.textColor = StatusBarPrefs.showRates ? .white : .secondaryLabelColor
+        remainingChip.layer?.backgroundColor = StatusBarPrefs.showRemaining
+            ? NSColor.white.withAlphaComponent(0.14).cgColor : NSColor.clear.cgColor
+        remainingLabel.font = .systemFont(ofSize: 11, weight: StatusBarPrefs.showRemaining ? .semibold : .regular)
+        remainingLabel.textColor = StatusBarPrefs.showRemaining ? .white : .secondaryLabelColor
     }
 
     @objc private func toggleRateSection() {

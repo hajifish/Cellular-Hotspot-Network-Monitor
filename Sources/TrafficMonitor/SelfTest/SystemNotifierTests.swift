@@ -4,6 +4,7 @@ enum SystemNotifierTests {
     static func all() {
         postRoutesThroughDeliverSeam()
         postForwardsOnFailureThroughSeam()
+        timeSensitiveFlagPassesThrough()
         activationRouterReceivesIdentifier()
         repeatedConfigureReplacesRouter()
         activationOpensHomeForAllButUpToDate()
@@ -14,7 +15,7 @@ enum SystemNotifierTests {
         defer { SystemNotifier.deliver = original }
         var posted: [(title: String, body: String, identifier: String, sound: Bool,
                       onFailure: ((Error) -> Void)?)] = []
-        SystemNotifier.deliver = { title, body, identifier, sound, onFailure in
+        SystemNotifier.deliver = { title, body, identifier, sound, _, onFailure in
             posted.append((title, body, identifier, sound, onFailure))
         }
         SystemNotifier.post(title: "标题", body: "正文", identifier: "id-1", sound: false)
@@ -35,7 +36,7 @@ enum SystemNotifierTests {
         let original = SystemNotifier.deliver
         defer { SystemNotifier.deliver = original }
         var failures: [Error] = []
-        SystemNotifier.deliver = { _, _, _, _, onFailure in
+        SystemNotifier.deliver = { _, _, _, _, _, onFailure in
             onFailure?(DeliverError.failed)
         }
         SystemNotifier.post(title: "标题", body: "正文", identifier: "id-2",
@@ -45,6 +46,20 @@ enum SystemNotifierTests {
             TestRun.expectEqual(String(describing: failures[0]),
                                 String(describing: DeliverError.failed), "错误对象透传")
         }
+    }
+
+    /// timeSensitive 位透传：告警侧显式 true → deliver 收到 true；缺省（里程碑预告/
+    /// 更新等普通通知一律不带该参数）→ false，维持系统默认 active 级、payload 最小
+    /// （仅告警是时间敏感级，规格硬约束）
+    static func timeSensitiveFlagPassesThrough() {
+        let original = SystemNotifier.deliver
+        defer { SystemNotifier.deliver = original }
+        var captured: (String, String, String, Bool, Bool) = ("", "", "", true, false)
+        SystemNotifier.deliver = { t, b, i, s, ts, _ in captured = (t, b, i, s, ts) }
+        SystemNotifier.post(title: "t", body: "b", identifier: "id", sound: false, timeSensitive: true)
+        TestRun.expect(captured.4, "timeSensitive 位透传")
+        SystemNotifier.post(title: "t", body: "b", identifier: "id", sound: false)
+        TestRun.expect(!captured.4, "缺省为普通级")
     }
 
     private enum DeliverError: Error { case failed }

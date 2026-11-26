@@ -5,7 +5,19 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
-## [Unreleased]
+## [0.14.0] - 2026-11-26
+
+### 新增 (Added)
+
+- 告警浮动横幅：流量告警触发时在屏幕顶部居中弹出应用内深色卡片，作为全屏应用 / 专注模式下系统横幅被抑制时的应用内兜底。弹出不夺当前应用焦点（nonactivating panel），横跨 Space 展示——全屏应用所在空间同样可见；定位按屏幕可用区（visibleFrame，已排除菜单栏与 Dock，刘海机型菜单栏更高也自然避开）顶部下方 10pt；展示 10 秒自动淡出，悬停暂停倒计时、移出恢复；点击横幅会打开主页并激活应用；连续告警时旧横幅随新展示重置倒计时，不出现双计时
+- 纯图标模式状态栏图标随告警状态着色：累计 / 实时 / 剩余三项全关时状态栏 `↑↓` 图标按告警进度着色，与「剩余百分比」同一色阶（临近阈值转橙、触发转红）；告警未设置或未临近时维持系统默认文字色；有列展示时维持各列文本着色不变
+- 状态栏新增「告警剩余百分比」展示项（右上角新增「剩余」开关；告警未设置时不占位，剩余 ≤20% 转橙、触发转红）
+
+### 变更 (Changed)
+
+- 流量告警系统通知请求时间敏感级（interruptionLevel = .timeSensitive）：如实口径——当前 ad-hoc 签名缺少受限 entitlement（`com.apple.developer.usernotifications.time-sensitive` 挂上即被 AMFI 拒启，ad-hoc 无法携带），授权请求含时间敏感选项亦不奏效，usernoted 报 `missing authorization` 后系统降为普通级投递；应用内浮动横幅不受影响，仍兜住全屏 / 专注模式场景；其余通知维持普通级不变，payload 保持最小。请求保留，未来切换 Developer ID + provisioning 签名后自动生效
+- 告警本地兜底提示音从 Tink 升级为 Basso：Tink 过于轻薄、游戏音频下基本听不见；本地 Basso 即时响，系统通知音约 0.1 秒后随横幅到达（正常路径两声）；兜底音无论通知权限如何都会响起
+- 主页右上角开关文案缩短：累计流量→累计、实时速率→实时
 
 ## [0.13.0] - 2026-11-18
 
