@@ -245,7 +245,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // MARK: - 状态栏内容
 
     /// 状态栏：内容渲染为整张图片交给按钮垂直居中（多行文字不会被贴顶裁切）；
-    /// 仅图标模式显示软件 `↑↓` 符号；告警铃铛始终追加在内容之后。
+    /// 仅图标模式显示软件 `↑↓` 符号（已设置告警时随剩余分档着色，未设置为白）；
+    /// 告警铃铛始终追加在内容之后。
     /// 菜单栏恒为深色底，文字与箭头统一用白色单色风。
     /// 剩余列数据来自告警阈值与进度，未设置告警时不渲染。
     private func updateStatusBarContent() {
@@ -269,12 +270,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                                           totalRX: store.wifi.rx + store.iphone.rx,
                                                           totalTX: store.wifi.tx + store.iphone.tx) {
             content.append(attributed)
-        } else if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
-                                                          color: textColor, size: 13) {
-            let attachment = NSTextAttachment()
-            attachment.image = icon
-            attachment.bounds = NSRect(x: 0, y: -1, width: 13, height: 13)
-            content.append(NSAttributedString(attachment: attachment))
+        } else {
+            let fallbackColor = StatusBarFormatter.iconFallbackColor(
+                threshold: alert.threshold,
+                fired: alert.fired,
+                progressBytes: alert.progress(totalBytes: currentMeteredTotal()),
+                textColor: textColor)
+            if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
+                                                       color: fallbackColor, size: 13) {
+                let attachment = NSTextAttachment()
+                attachment.image = icon
+                attachment.bounds = NSRect(x: 0, y: -1, width: 13, height: 13)
+                content.append(NSAttributedString(attachment: attachment))
+            }
         }
 
         button.title = ""

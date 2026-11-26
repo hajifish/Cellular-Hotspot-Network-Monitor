@@ -10,6 +10,7 @@ enum StatusBarFormatterTests {
         bothOffIsNil()
         remainingPercentMath()
         remainingColorBands()
+        iconFallbackColorBands()
         showRemainingPrefDefaultsAndToggles()
         remainingToggleOffDoesNotRender()
         remainingColumnRenders()
@@ -59,6 +60,24 @@ enum StatusBarFormatterTests {
                        "1% 橙")
         TestRun.expect(near(StatusBarFormatter.remainingColor(percent: 0, textColor: .white), .systemRed),
                        "0% 红")
+    }
+
+    // ---- iconFallbackColor（纯图标模式兜底色，随告警状态分档；与 showRemaining 开关无关）----
+    static func iconFallbackColorBands() {
+        func near(_ a: NSColor, _ b: NSColor) -> Bool {
+            let (r1, g1, b1) = rgbs(a), (r2, g2, b2) = rgbs(b)
+            return abs(r1 - r2) < 0.05 && abs(g1 - g2) < 0.05 && abs(b1 - b2) < 0.05
+        }
+        func nearWhite(_ c: NSColor) -> Bool { near(c, .white) }
+        let gb = UInt64(1_000_000_000)
+        TestRun.expect(StatusBarFormatter.iconFallbackColor(threshold: nil, fired: false,
+                       progressBytes: 100, textColor: .white) == .white, "未设置 → 传入色")
+        TestRun.expect(nearWhite(StatusBarFormatter.iconFallbackColor(threshold: 20 * gb, fired: false,
+                       progressBytes: 15 * gb, textColor: .white)), "25% 剩余 → 白")
+        TestRun.expect(near(StatusBarFormatter.iconFallbackColor(threshold: 20 * gb, fired: false,
+                       progressBytes: 18 * gb, textColor: .white), .systemOrange), "10% 剩余 → 橙")
+        TestRun.expect(near(StatusBarFormatter.iconFallbackColor(threshold: 20 * gb, fired: true,
+                       progressBytes: 0, textColor: .white), .systemRed), "已触发 → 红")
     }
 
     // ---- showRemaining 开关 ----

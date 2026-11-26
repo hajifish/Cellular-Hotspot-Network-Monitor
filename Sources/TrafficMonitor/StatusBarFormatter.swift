@@ -172,4 +172,15 @@ enum StatusBarFormatter {
         if percent <= 20 { return .systemOrange }
         return textColor
     }
+
+    /// 纯图标模式（三个展示开关全关）`↑↓` 兜底图标的着色：告警未设置（或阈值为 0）
+    /// → 传入色；已设置 → 按剩余分档与 remainingColor 同口径。
+    /// 与 showRemaining 开关无关——这是告警状态指示，不是数据列。
+    static func iconFallbackColor(threshold: UInt64?, fired: Bool,
+                                  progressBytes: UInt64, textColor: NSColor) -> NSColor {
+        guard let threshold, threshold > 0 else { return textColor }
+        return remainingColor(percent: remainingPercent(threshold: threshold, fired: fired,
+                                                        progressBytes: progressBytes) ?? 0,
+                              textColor: textColor)
+    }
 }
