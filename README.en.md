@@ -20,8 +20,10 @@
 > Wi-Fi and USB-tethered iPhone traffic are metered separately with live
 > per-second rates; the moment your total crosses a threshold — **with
 > per-GB alerting supported by default** (1 / 2 / 5 / 10 / 20 GB presets,
-> one alert per threshold) — you get a soft chime plus a system
-> notification. Your data budget, at a glance — no more guessing.
+> one alert per threshold) — a local alert sound, a system notification,
+> and a focus-stealing-free banner arrive together, so even a fullscreen
+> game won't make you miss it; the status bar icon tints with alert
+> state. Your data budget, at a glance — no more guessing.
 
 ## Screenshots
 

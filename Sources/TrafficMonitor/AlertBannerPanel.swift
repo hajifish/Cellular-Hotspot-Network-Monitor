@@ -43,7 +43,7 @@ enum AlertBannerTimerDirective: Equatable {
 // MARK: - 告警浮动横幅
 
 /// 应用内告警浮动横幅：全屏 / 专注模式下系统通知被抑制时的应用内兜底（设计文档 2026-11-26 方案 B）。
-/// - `.nonactivatingPanel`：弹出与点击都不夺当前应用（如全屏游戏）的焦点
+/// - `.nonactivatingPanel`：弹出不夺当前应用（如全屏游戏）的焦点；点击横幅会打开主页并激活应用（语义见 onClick 路由）
 /// - `.floating` + `.canJoinAllSpaces + .fullScreenAuxiliary`：横跨 Space，全屏应用所在空间也可见
 /// - `hidesOnDeactivate = false`：本应用是 LSUIElement accessory，横幅绝不因失活隐藏
 /// - 10 秒自动淡出；悬停暂停倒计时、移出恢复；点击回调 onClick 并淡出关闭
