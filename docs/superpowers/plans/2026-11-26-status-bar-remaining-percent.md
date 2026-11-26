@@ -196,7 +196,7 @@ static func attributed(showRates: Bool, showTotals: Bool, showRemaining: Bool,
 
 ```swift
 static func remainingToggleOffDoesNotRender() {
-    let text = StatusBarFormatter.attributed(showRates: false, showTotals: true, showRemaining: false,
+    let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, showRemaining: false,
                                              remainingPercent: 25, textColor: .white,
                                              totalRate: rate, totalRX: 0, totalTX: 0)
     TestRun.expect(text == nil, "开关关 → 即使有百分比也不渲染")
