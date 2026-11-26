@@ -4,7 +4,7 @@ import Foundation
 /// 自测环境裁定（控制者）：裸二进制进程不构造真 NSPanel / 真计时器——
 /// 面板真身（真弹真消失、真悬停、真淡出）由打包目检（Task 4）覆盖；
 /// 此处测组件与实现共用同一份的纯逻辑：
-/// ① bannerFrame 布局纯函数（顶部居中 + 屏幕顶边下方 8pt）
+/// ① bannerFrame 布局纯函数（顶部居中 + 屏幕顶边下方 30pt，避开菜单栏）
 /// ② displayDuration 常量
 /// ③ 计时器编排指令映射（show 无条件重置旧计时器 / 悬停暂停 / 移出恢复 / 关闭清理）
 /// ④ 可见性状态机（show → 可见、dismiss → 隐藏、二次 show 状态完整重置）
@@ -29,8 +29,8 @@ enum AlertBannerPanelTests {
         let frame = AlertBannerPanel.bannerFrame(screenFrame: screen, bannerSize: size)
         TestRun.expectEqual(frame.midX, screen.midX, "bannerFrame 水平居中")
         TestRun.expectEqual(frame.maxY, screen.maxY - AlertBannerPanel.topGap,
-                            "顶边 = 屏幕顶边 − 8（菜单栏下方）")
-        TestRun.expectEqual(frame.origin.y, screen.maxY - 8 - 76, "y = screenFrame.maxY − 8 − height")
+                            "顶边 = 屏幕顶边 − 30（菜单栏下方不遮挡）")
+        TestRun.expectEqual(frame.origin.y, screen.maxY - 30 - 76, "y = screenFrame.maxY − 30 − height")
         TestRun.expectEqual(frame.size, size, "尺寸原样保留")
     }
 
@@ -40,7 +40,7 @@ enum AlertBannerPanelTests {
         let size = NSSize(width: 480, height: 92)
         let frame = AlertBannerPanel.bannerFrame(screenFrame: screen, bannerSize: size)
         TestRun.expectEqual(frame.midX, screen.midX, "负坐标系屏幕仍水平居中")
-        TestRun.expectEqual(frame.origin.y, screen.maxY - 8 - 92, "y 公式在负坐标系下不变")
+        TestRun.expectEqual(frame.origin.y, screen.maxY - 30 - 92, "y 公式在负坐标系下不变")
     }
 
     // MARK: - ② 常量
