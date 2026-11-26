@@ -195,7 +195,7 @@ static func attributed(showRates: Bool, showTotals: Bool, showRemaining: Bool,
 - [ ] **Step 1: 更新失败测试**（现有 4 用例调用点补 `showRemaining: false, remainingPercent: nil`，断言文本不变；新增用例并登记进 `all()`）
 
 ```swift
-static func remainingOnlyShowsPercent() {
+static func remainingToggleOffDoesNotRender() {
     let text = StatusBarFormatter.attributed(showRates: false, showTotals: true, showRemaining: false,
                                              remainingPercent: 25, textColor: .white,
                                              totalRate: rate, totalRX: 0, totalTX: 0)
@@ -226,7 +226,7 @@ static func unsetAlertHidesColumn() {
 }
 ```
 
-`all()` 追加：`remainingOnlyShowsPercent()`、`remainingColumnRenders()`、`allThreeColumns()`、`unsetAlertHidesColumn()`。
+`all()` 追加：`remainingToggleOffDoesNotRender()`、`remainingColumnRenders()`、`allThreeColumns()`、`unsetAlertHidesColumn()`。
 
 - [ ] **Step 2: 跑测试确认失败**
 
