@@ -58,11 +58,13 @@ final class AlertBannerPanel: NSPanel {
     nonisolated static let displayDuration: TimeInterval = 10
     /// 淡出动画时长
     static let fadeOutDuration: TimeInterval = 0.25
-    /// 顶部留白：横幅顶边距屏幕顶边 30pt（避开菜单栏遮挡：.mainMenu 层级 24 高于 .floating，
-    /// 桌面空间下横幅顶边距 < 24 会被菜单栏盖住；全屏空间菜单栏隐藏不受影响。bannerFrame 语义）
-    nonisolated static let topGap: CGFloat = 30
+    /// 顶部留白：横幅顶边距传入矩形顶边 10pt。show() 传 NSScreen.main?.visibleFrame
+    /// （已排除菜单栏与 Dock），横幅天然落在菜单栏下方——刘海机型菜单栏更高也自然
+    /// 避开；全屏空间菜单栏隐藏时 visibleFrame 即整屏，不受影响。bannerFrame 语义
+    nonisolated static let topGap: CGFloat = 10
 
-    /// 顶部居中布局（纯函数，可测）：水平居中，y = screenFrame.maxY − 30 − height
+    /// 顶部居中布局（纯函数，可测）：水平居中，y = screenFrame.maxY − topGap − height
+    /// （调用方传 visibleFrame；函数对传入矩形不做剪裁，传什么算什么）
     nonisolated static func bannerFrame(screenFrame: NSRect, bannerSize: NSSize) -> NSRect {
         NSRect(x: screenFrame.midX - bannerSize.width / 2,
                y: screenFrame.maxY - topGap - bannerSize.height,
@@ -126,7 +128,7 @@ final class AlertBannerPanel: NSPanel {
         bannerContentView.clearHoverState()
         visibility.show()
         applyTimerDirective(.show) // show 前重置旧计时器（restart 语义）
-        setFrame(Self.bannerFrame(screenFrame: NSScreen.main?.frame
+        setFrame(Self.bannerFrame(screenFrame: NSScreen.main?.visibleFrame
                                             ?? NSRect(x: 0, y: 0, width: 1280, height: 800),
                                   bannerSize: Self.bannerSize),
                  display: false)
