@@ -17,6 +17,12 @@ enum StatusBarPrefs {
         set { UserDefaults.standard.set(newValue, forKey: showTotalsKey) }
     }
 
+    static let showRemainingKey = "statusBarShowRemaining"
+    static var showRemaining: Bool {
+        get { UserDefaults.standard.object(forKey: showRemainingKey) as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: showRemainingKey) }
+    }
+
     /// 一次性迁移旧的单选模式（ratesOnly/totalsOnly/both/iconOnly）
     static func migrateLegacyMode() {
         guard UserDefaults.standard.object(forKey: showRatesKey) == nil,
@@ -102,5 +108,19 @@ enum StatusBarFormatter {
             }
         }
         return result
+    }
+
+    /// 告警剩余百分比（0-100 四舍五入）；未设置/阈值为 0 → nil；已触发或进度≥阈值 → 0
+    static func remainingPercent(threshold: UInt64?, fired: Bool, progressBytes: UInt64) -> Int? {
+        guard let threshold, threshold > 0 else { return nil }
+        guard !fired, progressBytes < threshold else { return 0 }
+        return Int((Double(threshold - progressBytes) / Double(threshold) * 100).rounded())
+    }
+
+    /// 剩余分档色：>20% 传入色（白）；≤20% 橙；0% 红（与主页汇总条 armed/fired 语义一致）
+    static func remainingColor(percent: Int, textColor: NSColor) -> NSColor {
+        if percent <= 0 { return .systemRed }
+        if percent <= 20 { return .systemOrange }
+        return textColor
     }
 }
