@@ -259,7 +259,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                                   progressBytes: alert.progress(totalBytes: currentMeteredTotal()))
             : nil
 
-        var content = NSMutableAttributedString()
+        let content = NSMutableAttributedString()
         if let attributed = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,
                                                           showTotals: StatusBarPrefs.showTotals,
                                                           showRemaining: StatusBarPrefs.showRemaining,

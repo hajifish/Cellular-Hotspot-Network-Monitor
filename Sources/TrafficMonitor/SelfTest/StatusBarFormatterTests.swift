@@ -63,11 +63,17 @@ enum StatusBarFormatterTests {
 
     // ---- showRemaining 开关 ----
     static func showRemainingPrefDefaultsAndToggles() {
+        let keyWasSet = UserDefaults.standard.object(forKey: StatusBarPrefs.showRemainingKey) != nil
         let original = StatusBarPrefs.showRemaining
-        defer { StatusBarPrefs.showRemaining = original }
-        if UserDefaults.standard.object(forKey: StatusBarPrefs.showRemainingKey) == nil {
-            TestRun.expect(!StatusBarPrefs.showRemaining, "未设置时默认 false")
+        defer {
+            if keyWasSet {
+                StatusBarPrefs.showRemaining = original
+            } else {
+                UserDefaults.standard.removeObject(forKey: StatusBarPrefs.showRemainingKey)
+            }
         }
+        UserDefaults.standard.removeObject(forKey: StatusBarPrefs.showRemainingKey)
+        TestRun.expect(!StatusBarPrefs.showRemaining, "未设置时默认 false")
         StatusBarPrefs.showRemaining = true
         TestRun.expect(StatusBarPrefs.showRemaining, "写后读回 true")
     }
@@ -103,8 +109,8 @@ enum StatusBarFormatterTests {
     }
 
     // ---- attributed × 剩余列 ----
-    // 简报笔误修正：showTotals: true 时即使开关关也有累计输出，text == nil 不可能成立；
-    // 按开关真值表取全关，验证「有百分比在手、开关关也不渲染」。
+    // 开关关闭时不渲染剩余列；rates/totals 全关才可能 text == nil，
+    // 故取全关真值表，验证有百分比在手、开关关也不占位。
     static func remainingToggleOffDoesNotRender() {
         let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, showRemaining: false,
                                                  remainingPercent: 25, textColor: .white,
