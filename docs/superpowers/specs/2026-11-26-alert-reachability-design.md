@@ -1,0 +1,46 @@
+# 告警触达强化（时间敏感通知 + 浮动横幅 + 图标着色）— 设计文档
+
+日期：2026-11-26　分支：`feature/alert-reachability`（叠在 `feature/status-bar-remaining-percent` 之上，PR #47 合并后开 PR）
+
+## 意图与背景
+
+用户在全屏游戏中错过流量告警：UN 横幅被全屏抑制（普通优先级压不过去）、`NSSound("Tink")` 声音太轻被游戏音频掩盖；纯图标模式（三个开关全关）下即使超出告警，图标也恒白，无任何状态信号。目标：告警必须穿透全屏/专注模式，视觉 + 听觉双通道触达。
+
+## 目标
+
+1. **时间敏感通知**：告警 UN 内容设 `interruptionLevel = .timeSensitive`（突破专注/全屏抑制，macOS 14 无需特权授权；系统设置里该 app「时间敏感通知」默认开，用户关掉则退回普通级——不为此多做兜底）；横幅出现时 UN 声音同步出声（即 content.sound，随横幅走）。
+   > **更正按语（2026-11-26 终审实测，macOS 26）**：上述「macOS 14 无需特权授权」前提实测不成立——UN 授权请求加 `.timeSensitive` 选项不奏效，usernoted 仍报 `Reducing interruption level ... missing authorization`；受限 entitlement `com.apple.developer.usernotifications.time-sensitive` 在 ad-hoc 签名下进程启动即被 AMFI 拒杀，无法携带。系统把时间敏感降为普通级投递；`timeSensitive: true` 与授权请求保留，未来换 Developer ID + provisioning 签名后自动生效，全屏兜底由浮窗层承担不受影响。详见 usernoted 日志取证。
+2. **应用内浮动横幅（方案 B）**：告警触发时无条件展示自绘 NSPanel 浮窗（无论 UN 投递结果），约 10 秒自动消失；`.nonactivatingPanel`（不抢游戏焦点）+ floating 层级 + 可跨空间；点击打开主页。真·独占全屏（CGDisplayCapture）是系统级硬限制，覆盖不到，不做尝试。
+3. **纯图标模式着色**：三个开关全关时，状态栏 `↑↓` 图标按告警状态着色——告警未设置 = 白；已设置 = 沿用 `remainingColor(remainingPercent(...))` 分档（>20% 白 / ≤20% 橙 / 0% 或已触发 红）。该着色独立于「剩余」开关（是状态指示，不是数据列）。
+4. **本地兜底音升级**：`Tink` → `Basso`（通知被系统设置完全关闭/授权拒绝时仍有存在感的一声）。
+
+## 非目标 / 反目标
+
+- 不做模态弹窗抢焦点（打断游戏是反目标，现 fallback 仅投递失败保留）
+- 里程碑预告（预告性信息）不提级 timeSensitive，保持普通级
+- 不尝试覆盖真·独占全屏；不做通知历史/重试机制
+
+## 约束
+
+- 通知一律走 UN（usernoted 老接口封杀是仓库铁律，不回退）
+- 裸二进制自测无 bundle：UN 相关全部可注入/跳过（现有 `AppVersion.isBundledApp` 与 `deliver` 注入点模式沿用）
+- 浮窗不得激活应用（fullscreen 游戏中弹出不夺焦点）
+
+## 方案取舍
+
+1. **（采纳）A+B 组合**：timeSensitive 解决「系统愿意显示」、浮窗解决「系统不显示也要显示」、图标着色解决「纯图标模式零信号」、Basso 解决「通知全关时无声」。三层冗余，各自独立失效不影响其他层。
+2. 仅 A（弃，用户点名要 B 的保底浮窗）。
+3. 模态弹窗（弃，反目标）。
+
+## 细节决策
+
+- `SystemNotifier.deliver` 签名扩展：追加 timeSensitive 参数（Bool 或入 enum），告警调用点传 true，其余调用点不变；SystemNotifierTests 同步。
+- 浮窗视觉：深色圆角卡片（与主页仪表盘语言一致），AppIcon + 「Traffic Monitor 流量告警」+ 已用/阈值文案；屏幕顶部居中（菜单栏下方）；10 秒淡出；鼠标悬停暂停倒计时、点击打开主页（复用 activationOpensHome 路由语义）。
+- 本地音：`NSSound(named: "Basso")` 单次；保留在 fireAlert 内、与投递解耦（现状模式）。
+- 图标着色仅在纯图标 fallback 分支（有列时不渲染图标，现状）。
+
+## 交予实现者
+
+- 浮窗布局/动画细节（以不遮挡菜单栏、不夺焦点为准）
+- B4 图标着色测试的断言切分（formatter 侧纯函数已有，接线侧编译+目检）
+- 浮窗的 SelfTest 可测纯函数切分（如倒计时/常驻判断）

@@ -245,7 +245,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // MARK: - 状态栏内容
 
     /// 状态栏：内容渲染为整张图片交给按钮垂直居中（多行文字不会被贴顶裁切）；
-    /// 仅图标模式显示软件 `↑↓` 符号；告警铃铛始终追加在内容之后。
+    /// 仅图标模式显示软件 `↑↓` 符号（已设置告警时随剩余分档着色，未设置为白）；
+    /// 告警铃铛始终追加在内容之后。
     /// 菜单栏恒为深色底，文字与箭头统一用白色单色风。
     /// 剩余列数据来自告警阈值与进度，未设置告警时不渲染。
     private func updateStatusBarContent() {
@@ -269,12 +270,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                                           totalRX: store.wifi.rx + store.iphone.rx,
                                                           totalTX: store.wifi.tx + store.iphone.tx) {
             content.append(attributed)
-        } else if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
-                                                          color: textColor, size: 13) {
-            let attachment = NSTextAttachment()
-            attachment.image = icon
-            attachment.bounds = NSRect(x: 0, y: -1, width: 13, height: 13)
-            content.append(NSAttributedString(attachment: attachment))
+        } else {
+            let fallbackColor = StatusBarFormatter.iconFallbackColor(
+                threshold: alert.threshold,
+                fired: alert.fired,
+                progressBytes: alert.progress(totalBytes: currentMeteredTotal()),
+                textColor: textColor)
+            if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
+                                                       color: fallbackColor, size: 13) {
+                let attachment = NSTextAttachment()
+                attachment.image = icon
+                attachment.bounds = NSRect(x: 0, y: -1, width: 13, height: 13)
+                content.append(NSAttributedString(attachment: attachment))
+            }
         }
 
         button.title = ""
@@ -525,14 +533,26 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                             identifier: UUID().uuidString)
     }
 
+    /// 告警浮动横幅（方案 B 兜底，见 AlertBannerPanel）：告警触发时无条件展示。
+    /// lazy：NSPanel 推迟到首次告警才创建，日常运行与自测路径零成本。
+    private lazy var alertBanner = AlertBannerPanel()
+
     private func fireAlert(usedBytes: UInt64) {
         let used = ByteFormat.string(usedBytes)
         let limit = ByteFormat.string(alert.threshold ?? 0)
         logger.info("alert fired: used=\(used, privacy: .public) threshold=\(limit, privacy: .public)")
-        NSSound(named: "Tink")?.play() // 简单的"滴"一声，无论通知权限如何都会响
+        // 本地兜底音，无论通知权限如何都会响；Tink 太轻、游戏音频下基本听不见，
+        // 2026-11-26 升级为更厚重的 Basso
+        NSSound(named: "Basso")?.play()
+        // 应用内浮动横幅：无条件兜底展示（无论 UN 投递结果）——全屏 / 专注模式抑制
+        // 系统横幅时仍可见；不夺焦点、跨全屏空间、10s 自动淡出、悬停暂停、点击开主页
+        alertBanner.show(title: "Traffic Monitor 流量告警",
+                         body: "已用 \(used)，达到 \(limit)。",
+                         onClick: { [weak self] in self?.openHome() })
         SystemNotifier.post(title: "Traffic Monitor 流量告警",
                             body: "已用 \(used)，达到 \(limit)。",
                             identifier: UUID().uuidString,
+                            timeSensitive: true,
                             onFailure: { [weak self] _ in
                                 // onFailure 已由 SystemNotifier 派发主线程；Task 只为静态跨 MainActor 隔离
                                 Task { @MainActor in self?.showFallbackAlert(used: used, limit: limit) }
