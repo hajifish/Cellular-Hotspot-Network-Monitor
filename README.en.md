@@ -39,9 +39,12 @@
 - **Menu bar rates** — live rates and totals each render as a compact
   two-line ↑/↓ group, side by side when both are enabled, refreshed every
   second; with both off, only the app icon is shown
-- **Display toggles** — two independent toggles at the top-right of the home
-  window: live rates (on by default) and totals (off by default); your
-  choice is remembered
+- **Display toggles** — three toggles at the top-right of the home window —
+  **totals / rates / remaining** — that compose what the menu bar shows;
+  your choice is remembered. **Remaining** shows the traffic alert's
+  remaining percentage (off by default; requires a traffic alert — the
+  column is hidden while no alert is set; orange at ≤20% remaining, red 0%
+  once the alert has fired)
 - **Per-interface totals** — receive/transmit totals and an **independent
   start time** for each of Wi-Fi and iPhone USB
 - **Per-module reset** — each interface card has a reset button (top-right);

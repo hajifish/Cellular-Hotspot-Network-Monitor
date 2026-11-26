@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-/// 状态栏显示偏好（两个独立开关；都关闭 = 只显示图标）
+/// 状态栏显示偏好（三个独立开关：累计/实时/剩余；都关闭 = 只显示图标）
 enum StatusBarPrefs {
     static let showRatesKey = "statusBarShowRates"
     static let showTotalsKey = "statusBarShowTotals"
@@ -52,6 +52,10 @@ enum StatusBarFormatter {
     /// ↑3.9MB   ↑5.1KB/s  75%
     /// ↓1.2MB   ↓9.2KB/s
     /// ```
+    ///
+    /// 实测：三列位图约 103×29pt（两列 80×24pt）；baselineOffset 会被 TextKit
+    /// 计入首行 descent、整体行高变大，百分比视觉略高于两行墨迹中心；
+    /// 菜单栏对超高位图约 0.9× 等比缩小。
     static func attributed(showRates: Bool, showTotals: Bool, showRemaining: Bool,
                            remainingPercent: Int?, textColor: NSColor,
                            totalRate: CategoryDelta, totalRX: UInt64, totalTX: UInt64) -> NSAttributedString? {
