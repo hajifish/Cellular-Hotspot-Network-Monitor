@@ -38,7 +38,8 @@
 
 - **Menu bar rates** — live rates and totals each render as a compact
   two-line ↑/↓ group, side by side when both are enabled, refreshed every
-  second; with both off, only the app icon is shown
+  second; with both off, only the app icon is shown (tinted by alert state:
+  orange at ≤20% remaining, red once the alert has fired)
 - **Display toggles** — three toggles at the top-right of the home window —
   **totals / rates / remaining** — that compose what the menu bar shows;
   your choice is remembered. **Remaining** shows the traffic alert's
@@ -54,8 +55,12 @@
   cumulative upload + download**; thresholds off, 500 MB, 1 / 2 / 3 / 5 / 10 /
   20 GB, or custom values (`5 GB`, `500 MB`), presented as a plan budget: once armed,
   the menu and home window show the remainder ("剩 X · 已用 Y%" = X left · Y%
-  used). On crossing: a soft chime plus a system notification (in-app
-  dialog if notifications are not authorized) and the ring turns red.
+  used). On crossing: a local Basso alert sound plus a system notification
+  banner (a time-sensitive interruption level is requested; under ad-hoc-signed
+  distribution the system delivers it at the ordinary level) plus an in-app
+  floating banner (doesn't steal focus, visible across Spaces and full-screen,
+  auto-dismisses after 10 seconds, click to open the home window; shown even
+  when notifications are not authorized) and the ring turns red.
   When changing the threshold, you can keep and count existing usage or reset
   all totals and start a new metering period. Fires once per threshold and
   re-arms on reset or change. Ahead of the cap, tiered progress notices adapt
