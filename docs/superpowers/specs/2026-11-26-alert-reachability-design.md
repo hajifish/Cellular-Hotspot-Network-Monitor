@@ -9,6 +9,7 @@
 ## 目标
 
 1. **时间敏感通知**：告警 UN 内容设 `interruptionLevel = .timeSensitive`（突破专注/全屏抑制，macOS 14 无需特权授权；系统设置里该 app「时间敏感通知」默认开，用户关掉则退回普通级——不为此多做兜底）；横幅出现时 UN 声音同步出声（即 content.sound，随横幅走）。
+   > **更正按语（2026-11-26 终审实测，macOS 26）**：上述「macOS 14 无需特权授权」前提实测不成立——UN 授权请求加 `.timeSensitive` 选项不奏效，usernoted 仍报 `Reducing interruption level ... missing authorization`；受限 entitlement `com.apple.developer.usernotifications.time-sensitive` 在 ad-hoc 签名下进程启动即被 AMFI 拒杀，无法携带。系统把时间敏感降为普通级投递；`timeSensitive: true` 与授权请求保留，未来换 Developer ID + provisioning 签名后自动生效，全屏兜底由浮窗层承担不受影响。详见 usernoted 日志取证。
 2. **应用内浮动横幅（方案 B）**：告警触发时无条件展示自绘 NSPanel 浮窗（无论 UN 投递结果），约 10 秒自动消失；`.nonactivatingPanel`（不抢游戏焦点）+ floating 层级 + 可跨空间；点击打开主页。真·独占全屏（CGDisplayCapture）是系统级硬限制，覆盖不到，不做尝试。
 3. **纯图标模式着色**：三个开关全关时，状态栏 `↑↓` 图标按告警状态着色——告警未设置 = 白；已设置 = 沿用 `remainingColor(remainingPercent(...))` 分档（>20% 白 / ≤20% 橙 / 0% 或已触发 红）。该着色独立于「剩余」开关（是状态指示，不是数据列）。
 4. **本地兜底音升级**：`Tink` → `Basso`（通知被系统设置完全关闭/授权拒绝时仍有存在感的一声）。
