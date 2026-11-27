@@ -38,27 +38,21 @@ enum StatusBarPrefs {
 }
 
 enum StatusBarFormatter {
-    /// 状态栏富文本；三个开关都无内容时返回 nil（只显示图标）。
+    /// 状态栏「累计 / 实时」列富文本（两行竖排，同开并排，列间两个空格）。
     ///
-    /// 布局：累计流量在前、实时速率在后，各自是一组「↑上 / ↓下」两行竖排；
-    /// 同开时两组并排（列间两个空格）。8pt 紧行距，保证不超出菜单栏高度。
-    /// 告警剩余百分比是第三列，只追加在第一行行尾：gauge 仪表盘符号（9pt，
-    /// 与文字同一分档色）+ 9pt semibold 百分比，基线下移 3.5pt 使其视觉上
-    /// 跨两行居中；开关关闭或未设置告警（percent 为 nil）时不占位。
+    /// 告警剩余百分比（第三列）由 `remainingAttributed` 单独产出，由调用方在
+    /// 位图合成阶段水平拼接、垂直居中——同串内用 baselineOffset 跨行居中会
+    /// 被 TextKit 计入行高导致列几何被撑歪（v0.14.0 实测），故拆两块绘制。
     ///
-    /// textColor 需由调用方按菜单栏明暗传入显式色（位图渲染中语义色解析不可靠）。
+    /// 全部为空（两开关关且不取剩余片段）时返回 nil（只显示图标）。
     ///
     /// ```text
-    /// ↑3.9MB   ↑5.1KB/s  ⏲ 75%
+    /// ↑3.9MB   ↑5.1KB/s
     /// ↓1.2MB   ↓9.2KB/s
     /// ```
-    /// （⏲ 即 gauge 符号位图 attachment；plain string 中表现为 U+FFFC）
     ///
-    /// 实测：三列位图约 103×29pt（两列 80×24pt）；baselineOffset 会被 TextKit
-    /// 计入首行 descent、整体行高变大，百分比视觉略高于两行墨迹中心；
-    /// 菜单栏对超高位图约 0.9× 等比缩小。
-    static func attributed(showRates: Bool, showTotals: Bool, showRemaining: Bool,
-                           remainingPercent: Int?, textColor: NSColor,
+    /// textColor 需由调用方按菜单栏明暗传入显式色（位图渲染中语义色解析不可靠）。
+    static func attributed(showRates: Bool, showTotals: Bool, textColor: NSColor,
                            totalRate: CategoryDelta, totalRX: UInt64, totalTX: UInt64) -> NSAttributedString? {
         struct Segment {
             let arrow: String
@@ -83,25 +77,14 @@ enum StatusBarFormatter {
                         value: ByteFormat.rate(totalRate.rx, compact: true)),
             ])
         }
-        let remaining: (text: String, color: NSColor)? = showRemaining
-            ? remainingPercent.map { ("\($0)%", remainingColor(percent: $0, textColor: textColor)) }
-            : nil
-        guard !columns.isEmpty || remaining != nil else { return nil }
+        guard !columns.isEmpty else { return nil }
 
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 0
-        paragraph.lineHeightMultiple = 0.9
+        paragraph.lineHeightMultiple = 0.9 // 紧行距：两行墨迹不超出菜单栏高度
         paragraph.alignment = .left
 
         let result = NSMutableAttributedString()
-
-        // 仅剩剩余列（rates/totals 全关）：单行输出，无分隔
-        if columns.isEmpty, let remaining {
-            result.append(remainingSegment(text: remaining.text, color: remaining.color,
-                                           baselineOffset: 0))
-            return result
-        }
-
         let rowCount = columns[0].count
         for row in 0..<rowCount {
             if row > 0 {
@@ -126,15 +109,27 @@ enum StatusBarFormatter {
                     .font: font, .foregroundColor: textColor,
                 ]))
             }
-            if row == 0, let remaining {
-                result.append(NSAttributedString(string: "  ", attributes: [
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .regular),
-                    .paragraphStyle: paragraph,
-                ]))
-                result.append(remainingSegment(text: remaining.text, color: remaining.color,
-                                               baselineOffset: -3.5))
-            }
         }
+        return result
+    }
+
+    /// 告警剩余百分比片段：应用标志性 `↑↓` 箭头符号 + 14pt semibold 百分比，
+    /// 同一分档色，单行、无行高/基线技巧（跨行垂直居中由调用方位图合成完成）。
+    /// 百分比字号独立于列字号——10pt 反馈小一半、20pt 过大、16pt/14.4pt/12pt
+    /// 逐步收敛定档 14pt（2026-11-27）。
+    static func remainingAttributed(percent: Int, textColor: NSColor) -> NSAttributedString {
+        let color = remainingColor(percent: percent, textColor: textColor)
+        let result = NSMutableAttributedString()
+        if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down", color: color, size: 14) {
+            let attachment = NSTextAttachment()
+            attachment.image = icon
+            attachment.bounds = NSRect(x: 0, y: -2.1, width: 14, height: 14)
+            result.append(NSAttributedString(attachment: attachment))
+        }
+        result.append(NSAttributedString(string: " \(percent)%", attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .semibold),
+            .foregroundColor: color,
+        ]))
         return result
     }
 
@@ -143,27 +138,6 @@ enum StatusBarFormatter {
         guard let threshold, threshold > 0 else { return nil }
         guard !fired, progressBytes < threshold else { return 0 }
         return Int((Double(threshold - progressBytes) / Double(threshold) * 100).rounded())
-    }
-
-    /// 剩余列富片段：gauge 仪表盘符号 + 百分比，同一分档色；
-    /// 图标经 attachment.bounds.y 与文字 baselineOffset 同步下沉（视觉跨两行居中时不断开）。
-    /// 图标缺失（理论不存在，macOS 14 起 gauge 恒可用）时优雅退化为纯文字。
-    private static func remainingSegment(text: String, color: NSColor,
-                                         baselineOffset: CGFloat) -> NSAttributedString {
-        let result = NSMutableAttributedString()
-        if let icon = MenuTextBuilder.tintedSymbol("gauge", color: color, size: 9) {
-            let attachment = NSTextAttachment()
-            attachment.image = icon
-            attachment.bounds = NSRect(x: 0, y: baselineOffset - 1, width: 9, height: 9)
-            result.append(NSAttributedString(attachment: attachment))
-        }
-        var attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .semibold),
-            .foregroundColor: color,
-        ]
-        if baselineOffset != 0 { attributes[.baselineOffset] = baselineOffset }
-        result.append(NSAttributedString(string: " \(text)", attributes: attributes))
-        return result
     }
 
     /// 剩余分档色：>20% 传入色（白）；≤20% 橙；0% 红（与主页汇总条 armed/fired 语义一致）
