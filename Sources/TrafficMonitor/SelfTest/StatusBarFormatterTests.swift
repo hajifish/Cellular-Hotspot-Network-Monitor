@@ -12,10 +12,7 @@ enum StatusBarFormatterTests {
         remainingColorBands()
         iconFallbackColorBands()
         showRemainingPrefDefaultsAndToggles()
-        remainingToggleOffDoesNotRender()
-        remainingColumnRenders()
-        allThreeColumns()
-        unsetAlertHidesColumn()
+        remainingAttributedRenders()
     }
 
     // ---- remainingPercent ----
@@ -98,66 +95,35 @@ enum StatusBarFormatterTests {
     }
 
     static func ratesOnlyIsVerticalGroup() {
-        let text = StatusBarFormatter.attributed(showRates: true, showTotals: false, showRemaining: false,
-                                                 remainingPercent: nil, textColor: .white,
+        let text = StatusBarFormatter.attributed(showRates: true, showTotals: false, textColor: .white,
                                                  totalRate: rate, totalRX: 0, totalTX: 0)?.string
         TestRun.expectEqual(text, "↑300B/s\n↓1.2KB/s", "rates vertical group")
     }
 
     static func totalsOnlyIsVerticalGroup() {
-        let text = StatusBarFormatter.attributed(showRates: false, showTotals: true, showRemaining: false,
-                                                 remainingPercent: nil, textColor: .white,
+        let text = StatusBarFormatter.attributed(showRates: false, showTotals: true, textColor: .white,
                                                  totalRate: rate,
                                                  totalRX: 8_100_000_000, totalTX: 2_300_000_000)?.string
         TestRun.expectEqual(text, "↑2.3GB\n↓8.1GB", "totals vertical group")
     }
 
     static func bothIsTwoSideBySideGroups() {
-        let text = StatusBarFormatter.attributed(showRates: true, showTotals: true, showRemaining: false,
-                                                 remainingPercent: nil, textColor: .white,
+        let text = StatusBarFormatter.attributed(showRates: true, showTotals: true, textColor: .white,
                                                  totalRate: rate,
                                                  totalRX: 8_100_000_000, totalTX: 2_300_000_000)?.string
         TestRun.expectEqual(text, "↑2.3GB  ↑300B/s\n↓8.1GB  ↓1.2KB/s", "totals first, rates second")
     }
 
     static func bothOffIsNil() {
-        let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, showRemaining: false,
-                                                 remainingPercent: nil, textColor: .white,
+        let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, textColor: .white,
                                                  totalRate: rate, totalRX: 0, totalTX: 0)
         TestRun.expect(text == nil, "both off hides text")
     }
 
-    // ---- attributed × 剩余列 ----
-    // 开关关闭时不渲染剩余列；rates/totals 全关才可能 text == nil，
-    // 故取全关真值表，验证有百分比在手、开关关也不占位。
-    static func remainingToggleOffDoesNotRender() {
-        let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, showRemaining: false,
-                                                 remainingPercent: 25, textColor: .white,
-                                                 totalRate: rate, totalRX: 0, totalTX: 0)
-        TestRun.expect(text == nil, "开关关 → 即使有百分比也不渲染")
-    }
-
-    static func remainingColumnRenders() {
-        let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, showRemaining: true,
-                                                 remainingPercent: 25, textColor: .white,
-                                                 totalRate: rate, totalRX: 0, totalTX: 0)?.string
-        // 图标 attachment 在 plain string 里是 U+FFFC（object replacement）
-        TestRun.expectEqual(text, "\u{FFFC} 25%", "仅剩余列单行：仪表图标 + 百分比")
-    }
-
-    static func allThreeColumns() {
-        let text = StatusBarFormatter.attributed(showRates: true, showTotals: true, showRemaining: true,
-                                                 remainingPercent: 25, textColor: .white,
-                                                 totalRate: rate,
-                                                 totalRX: 8_100_000_000, totalTX: 2_300_000_000)?.string
-        TestRun.expectEqual(text, "↑2.3GB  ↑300B/s  \u{FFFC} 25%\n↓8.1GB  ↓1.2KB/s",
-                            "累计 → 实时 → 剩余（剩余列带图标、只在首行）")
-    }
-
-    static func unsetAlertHidesColumn() {
-        let text = StatusBarFormatter.attributed(showRates: false, showTotals: false, showRemaining: true,
-                                                 remainingPercent: nil, textColor: .white,
-                                                 totalRate: rate, totalRX: 0, totalTX: 0)
-        TestRun.expect(text == nil, "告警未设置 → 列不占位")
+    // ---- remainingAttributed（剩余片段：跨行垂直居中由调用方位图合成完成）----
+    // 剩余片段单行产出：箭头符号 attachment 在 plain string 里是 U+FFFC（object replacement）
+    static func remainingAttributedRenders() {
+        let text = StatusBarFormatter.remainingAttributed(percent: 25, textColor: .white).string
+        TestRun.expectEqual(text, "\u{FFFC} 25%", "箭头符号 attachment + 百分比")
     }
 }

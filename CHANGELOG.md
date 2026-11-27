@@ -5,6 +5,12 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 版本号遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
+## [Unreleased]
+
+### 变更 (Changed)
+
+- 状态栏「剩余百分比」读数放大至 14pt semibold（10pt 反馈小一半、20pt/16pt/14.4pt/12pt 逐步收敛后定档 14pt），并改为位图合成跨「↑/↓」两行构造性垂直居中：v0.14.0 的 baselineOffset 方案会被 TextKit 计入行高，撑歪列几何且读数偏小偏高；剩余片段现独立成块与列位图拼接。列首图标从 gauge 仪表盘换回应用标志性上下箭头（同分档色），不再引入新符号
+
 ## [0.14.0] - 2026-11-26
 
 ### 新增 (Added)

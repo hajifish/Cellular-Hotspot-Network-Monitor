@@ -248,7 +248,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 仅图标模式显示软件 `↑↓` 符号（已设置告警时随剩余分档着色，未设置为白）；
     /// 告警铃铛始终追加在内容之后。
     /// 菜单栏恒为深色底，文字与箭头统一用白色单色风。
-    /// 剩余列数据来自告警阈值与进度，未设置告警时不渲染。
+    /// 剩余列数据来自告警阈值与进度，未设置告警时不渲染；百分比片段在位图合成
+    /// 阶段水平拼接并跨「↑/↓」两行垂直居中（同串内 baselineOffset 会被 TextKit
+    /// 计入行高、撑歪列几何——v0.14.0 实测，故拆两块绘制）。
     private func updateStatusBarContent() {
         guard let button = statusItem.button else { return }
         let store = monitor.store
@@ -259,35 +261,54 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                                   fired: alert.fired,
                                                   progressBytes: alert.progress(totalBytes: currentMeteredTotal()))
             : nil
+        let remainingPiece = remainingPercent.map {
+            StatusBarFormatter.remainingAttributed(percent: $0, textColor: textColor)
+        }
 
-        let content = NSMutableAttributedString()
-        if let attributed = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,
-                                                          showTotals: StatusBarPrefs.showTotals,
-                                                          showRemaining: StatusBarPrefs.showRemaining,
-                                                          remainingPercent: remainingPercent,
-                                                          textColor: textColor,
-                                                          totalRate: monitor.totalRate,
-                                                          totalRX: store.wifi.rx + store.iphone.rx,
-                                                          totalTX: store.wifi.tx + store.iphone.tx) {
-            content.append(attributed)
-        } else {
+        let columns = StatusBarFormatter.attributed(showRates: StatusBarPrefs.showRates,
+                                                    showTotals: StatusBarPrefs.showTotals,
+                                                    textColor: textColor,
+                                                    totalRate: monitor.totalRate,
+                                                    totalRX: store.wifi.rx + store.iphone.rx,
+                                                    totalTX: store.wifi.tx + store.iphone.tx)
+
+        let fallback: NSAttributedString?
+        if columns == nil && remainingPiece == nil {
             let fallbackColor = StatusBarFormatter.iconFallbackColor(
                 threshold: alert.threshold,
                 fired: alert.fired,
                 progressBytes: alert.progress(totalBytes: currentMeteredTotal()),
                 textColor: textColor)
-            if let icon = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
-                                                       color: fallbackColor, size: 13) {
+            let icon = NSMutableAttributedString()
+            if let symbol = MenuTextBuilder.tintedSymbol("arrow.up.arrow.down",
+                                                         color: fallbackColor, size: 13) {
                 let attachment = NSTextAttachment()
-                attachment.image = icon
+                attachment.image = symbol
                 attachment.bounds = NSRect(x: 0, y: -1, width: 13, height: 13)
-                content.append(NSAttributedString(attachment: attachment))
+                icon.append(NSAttributedString(attachment: attachment))
             }
+            fallback = icon
+        } else {
+            fallback = nil
+        }
+
+        let image: NSImage
+        switch (columns, remainingPiece, fallback) {
+        case (let columns?, let remaining?, _):
+            image = renderedImage(columns: columns, remaining: remaining)
+        case (let columns?, nil, _):
+            image = renderedImage(of: columns)
+        case (nil, let remaining?, _):
+            image = renderedImage(of: remaining)
+        case (nil, nil, let fallback?):
+            image = renderedImage(of: fallback)
+        case (nil, nil, nil):
+            image = renderedImage(of: NSMutableAttributedString())
         }
 
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
-        button.image = renderedImage(of: content)
+        button.image = image
     }
 
     /// 把富文本渲染成位图（按钮对图片是垂直居中的，规避多行文本贴顶问题）。
@@ -301,6 +322,29 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let image = NSImage(size: size)
         image.lockFocus()
         text.draw(at: NSPoint(x: padding, y: padding))
+        image.unlockFocus()
+        return image
+    }
+
+    /// 列位图 + 剩余片段位图的水平拼接：剩余片段按两图高度差垂直居中（构造性对齐，
+    /// 不依赖 TextKit 行高行为）− 1.5pt 墨迹补偿（bounding 含行高 padding 非纯墨迹；
+    /// 离线像素标定：不补偿时百分比墨迹中心偏高 1.5pt，AppKit y 向上故补偿取负）。
+    private func renderedImage(columns: NSAttributedString, remaining: NSAttributedString) -> NSImage {
+        let columnsBounds = columns.boundingRect(with: NSSize(width: 400, height: 60),
+                                                 options: [.usesLineFragmentOrigin, .usesFontLeading])
+        let remainingBounds = remaining.boundingRect(with: NSSize(width: 400, height: 60),
+                                                     options: [.usesLineFragmentOrigin, .usesFontLeading])
+        let padding: CGFloat = 2
+        let gap: CGFloat = 4
+        let inkCompensation: CGFloat = -1.5
+        let columnsWidth = ceil(columnsBounds.width)
+        let size = NSSize(width: padding * 2 + columnsWidth + gap + ceil(remainingBounds.width),
+                          height: padding * 2 + max(columnsBounds.height, remainingBounds.height))
+        let image = NSImage(size: size)
+        image.lockFocus()
+        columns.draw(at: NSPoint(x: padding, y: padding))
+        remaining.draw(at: NSPoint(x: padding + columnsWidth + gap,
+                                   y: padding + (columnsBounds.height - remainingBounds.height) / 2 + inkCompensation))
         image.unlockFocus()
         return image
     }
